@@ -93,11 +93,13 @@ internal suspend fun PlayerRuntimeController.fetchAddonSubtitlesNow(
         }
     }
 
+    // Subtitle addons key on real IDs, not synthetic catalogue ones.
+    val identity = currentVideoPlaybackIdentity()
     return withStreamSidecarSubtitles(
         subtitleRepository.getSubtitles(
-            type = request.type,
-            id = request.id,
-            videoId = request.videoId,
+            type = identity?.type ?: request.type,
+            id = identity?.id ?: request.id,
+            videoId = identity?.videoId ?: request.videoId,
             videoHash = currentVideoHash,
             videoSize = currentVideoSize,
             filename = currentFilename,
