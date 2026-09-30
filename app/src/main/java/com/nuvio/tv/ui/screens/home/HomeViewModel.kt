@@ -68,6 +68,7 @@ class HomeViewModel @Inject constructor(
     internal val libraryRepository: LibraryRepository,
     internal val metaRepository: MetaRepository,
     internal val collectionsDataStore: CollectionsDataStore,
+    internal val playlistRepository: com.nuvio.tv.core.playlist.PlaylistRepository,
     internal val layoutPreferenceDataStore: LayoutPreferenceDataStore,
     internal val playerSettingsDataStore: PlayerSettingsDataStore,
     internal val tmdbSettingsDataStore: TmdbSettingsDataStore,

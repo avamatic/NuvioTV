@@ -175,6 +175,12 @@ sealed class Screen(val route: String) {
         }
     }
 
+    data object Playlist : Screen("playlist/{playlistId}") {
+        fun createRoute(playlistId: String): String {
+            return "playlist/${URLEncoder.encode(playlistId, "UTF-8").replace("+", "%20")}"
+        }
+    }
+
     data object FolderDetail : Screen("folder_detail/{collectionId}/{folderId}") {
         private fun encode(value: String): String =
             URLEncoder.encode(value, "UTF-8").replace("+", "%20")

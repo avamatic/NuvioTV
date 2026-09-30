@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.nuvio.tv.R
 import com.nuvio.tv.core.network.NetworkResult
+import com.nuvio.tv.core.playlist.toHomeCollection
 import com.nuvio.tv.domain.model.Addon
 import com.nuvio.tv.domain.model.CatalogDescriptor
 import com.nuvio.tv.domain.model.CatalogRow
@@ -26,6 +27,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.update
 import com.nuvio.tv.domain.model.MetaPreview
 import com.nuvio.tv.domain.model.PLACEHOLDER_IMAGE_URL
@@ -45,8 +48,15 @@ private data class CatalogUpdateResult(
 @OptIn(FlowPreview::class)
 internal fun HomeViewModel.observeCollectionsPipeline() {
     viewModelScope.launch {
-        collectionsDataStore.collections
+        // The playlists row is a synthetic collection (see PlaylistHomeCollection); it is empty
+        // until the feed answers so a slow or unreachable feed never delays the other rows.
+        val playlistsRow = playlistRepository.observeSummaries()
+            .map { it.toHomeCollection(appContext.getString(R.string.playlists_home_title)) }
+            .onStart { emit(null) }
             .distinctUntilChanged()
+        combine(collectionsDataStore.collections.distinctUntilChanged(), playlistsRow) { collections, playlists ->
+            if (playlists == null) collections else collections + playlists
+        }
             .debounce(300)
             .collectLatest { collections ->
                 // Deduplicate by collection ID (keep last occurrence) to prevent

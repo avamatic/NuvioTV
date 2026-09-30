@@ -253,8 +253,37 @@ private fun PlaybackNavHost(
                     navController.navigate(Screen.CatalogSeeAll.createRoute(catalogId, addonId, type))
                 },
                 onNavigateToFolderDetail = { collectionId, folderId ->
-                    navController.navigate(Screen.FolderDetail.createRoute(collectionId, folderId))
+                    if (collectionId == com.nuvio.tv.core.playlist.PLAYLISTS_HOME_COLLECTION_ID) {
+                        navController.navigate(Screen.Playlist.createRoute(folderId))
+                    } else {
+                        navController.navigate(Screen.FolderDetail.createRoute(collectionId, folderId))
+                    }
                 }
+            )
+        }
+
+        composable(
+            route = Screen.Playlist.route,
+            arguments = listOf(navArgument("playlistId") { type = NavType.StringType })
+        ) {
+            com.nuvio.tv.ui.screens.playlist.PlaylistScreen(
+                onPlayEntry = { entry, playlistName ->
+                    navController.navigate(
+                        Screen.Stream.createRoute(
+                            videoId = entry.videoId,
+                            contentType = if (entry.isMovie) "movie" else "series",
+                            title = entry.show ?: entry.title ?: playlistName,
+                            poster = entry.image,
+                            backdrop = entry.image,
+                            season = entry.season,
+                            episode = entry.episode,
+                            episodeName = if (entry.isMovie) null else entry.title,
+                            contentId = entry.id,
+                            contentName = entry.show ?: entry.title ?: playlistName
+                        )
+                    )
+                },
+                onBack = { navController.popBackStack() }
             )
         }
 

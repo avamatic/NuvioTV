@@ -118,7 +118,8 @@ private enum class IntegrationSettingsSection {
     Debrid,
     Tmdb,
     MdbList,
-    AnimeSkip
+    AnimeSkip,
+    Playlists
 }
 
 internal enum class SettingsSectionDestination {
@@ -1166,6 +1167,7 @@ private fun IntegrationSettingsContent(
         onSelectSection(IntegrationSettingsSection.Hub)
     }
     val hubEntryFocusRequester = initialFocusRequester ?: hubFocusRequester
+    val playlistsFocusRequester = remember { FocusRequester() }
 
     LaunchedEffect(selectedSection, autoFocusEnabled) {
         if (!autoFocusEnabled) return@LaunchedEffect
@@ -1175,6 +1177,7 @@ private fun IntegrationSettingsContent(
             IntegrationSettingsSection.Tmdb -> tmdbFocusRequester
             IntegrationSettingsSection.MdbList -> mdbListFocusRequester
             IntegrationSettingsSection.AnimeSkip -> animeSkipFocusRequester
+            IntegrationSettingsSection.Playlists -> playlistsFocusRequester
         }
         runCatching { requester.requestFocus() }
     }
@@ -1230,6 +1233,13 @@ private fun IntegrationSettingsContent(
                                     onClick = { onSelectSection(IntegrationSettingsSection.AnimeSkip) }
                                 )
                             }
+                            item(key = "integration_hub_playlists") {
+                                SettingsActionRow(
+                                    title = stringResource(R.string.playlists_settings_title),
+                                    subtitle = stringResource(R.string.playlists_settings_subtitle),
+                                    onClick = { onSelectSection(IntegrationSettingsSection.Playlists) }
+                                )
+                            }
                         }
                         SettingsVerticalScrollIndicators(state = integrationHubState)
                     }
@@ -1258,6 +1268,12 @@ private fun IntegrationSettingsContent(
         IntegrationSettingsSection.AnimeSkip -> {
             AnimeSkipSettingsContent(
                 initialFocusRequester = animeSkipFocusRequester
+            )
+        }
+
+        IntegrationSettingsSection.Playlists -> {
+            PlaylistSettingsContent(
+                initialFocusRequester = playlistsFocusRequester
             )
         }
     }
