@@ -191,12 +191,12 @@ Lists edited inside the app, using the same `Playlist` model.
    forks closer to upstream.
 8. Local lists.
 
+## Decisions
+
+- No migration of watch progress from the synthetic lists (decided 2026-09-30).
+
 ## Open questions
 
-- Should local watch progress from the synthetic lists be migrated? It is keyed
-  by `chronio:<list>` S1E<position>; Trakt already has the real items from
-  scrobbles. Proposal: no migration; playlist position starts from the first
-  entry not marked watched.
 - Episode stills: fetch per entry from the metadata addon when the playlist
   screen scrolls (cached), or add optional `image` hints to the feed from TMDb
   (the server already queries TMDb seasons). Proposal: feed hints, since they're
