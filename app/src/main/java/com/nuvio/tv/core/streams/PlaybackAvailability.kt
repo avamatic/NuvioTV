@@ -27,8 +27,23 @@ internal data class PlaybackAvailability(
         videoId: String,
         contentId: String = videoId,
         video: Video? = null
-    ): Boolean = video?.takeIf { it.id == videoId }?.streams?.isNotEmpty() == true ||
-        cachedMeta(type, contentId)?.videos?.any { it.id == videoId && it.streams.isNotEmpty() } == true ||
-        addons.any { it.enabled && it.supportsStreamResource(type, videoId) } ||
-        scrapers.any { it.enabled && it.supportsType(type) }
+    ): Boolean {
+        val meta = cachedMeta(type, contentId)
+        val playbackIdentity = video?.takeIf { it.id == videoId }?.playbackIdentity
+            ?: meta?.videos?.firstOrNull { it.id == videoId }?.playbackIdentity
+        if (playbackIdentity != null) {
+            // Streams are searched by the real title, not the synthetic catalogue video.
+            return addons.any { it.enabled && it.supportsStreamResource(playbackIdentity.type, playbackIdentity.videoId) } ||
+                scrapers.any { it.enabled && it.supportsType(playbackIdentity.type) }
+        }
+        // An uncached synthetic video (e.g. resuming after a restart) may carry an identity the
+        // streams screen resolves; let it through rather than reporting playback unavailable.
+        if (meta == null && contentId != videoId && !videoId.startsWith("tt") &&
+            (addons.any { addon -> addon.enabled && addon.resources.any { it.name == "stream" } } || scrapers.any { it.enabled })
+        ) return true
+        return video?.takeIf { it.id == videoId }?.streams?.isNotEmpty() == true ||
+            meta?.videos?.any { it.id == videoId && it.streams.isNotEmpty() } == true ||
+            addons.any { it.enabled && it.supportsStreamResource(type, videoId) } ||
+            scrapers.any { it.enabled && it.supportsType(type) }
+    }
 }

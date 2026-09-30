@@ -7,6 +7,7 @@ import com.nuvio.tv.domain.model.RepositoryType
 import com.nuvio.tv.domain.model.ScraperInfo
 import com.nuvio.tv.domain.model.Stream
 import com.nuvio.tv.domain.model.Video
+import com.nuvio.tv.domain.model.VideoPlaybackIdentity
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.Assert.assertFalse
@@ -80,6 +81,29 @@ class PlaybackAvailabilityTest {
         assertTrue(available.canStream("other", video.id, "parent"))
         assertFalse(available.canStream("other", "different-video", "parent"))
         assertFalse(available.canStream("other", video.id, "uncached-parent"))
+    }
+
+    @Test
+    fun `synthetic videos with a playback identity use the real title`() {
+        val series = addon().copy(resources = listOf(AddonResource("stream", listOf("movie", "series"), listOf("tt"))))
+        val available = PlaybackAvailability(addons = listOf(series))
+        val episode = Video(
+            id = "chronio:list:series:tt1:1:3:1:1", title = "Episode", released = null, thumbnail = null,
+            season = 1, episode = 2, overview = null,
+            playbackIdentity = VideoPlaybackIdentity(type = "series", id = "tt1", season = 1, episode = 3)
+        )
+        assertTrue(available.canStream("series", episode.id, "chronio:list", episode))
+        assertFalse(available.canStream("series", episode.id, "chronio:list", episode.copy(playbackIdentity = null)))
+        val movie = episode.copy(playbackIdentity = VideoPlaybackIdentity(type = "movie", id = "tt2"))
+        assertTrue(available.canStream("series", movie.id, "chronio:list", movie))
+        assertFalse(PlaybackAvailability().canStream("series", episode.id, "chronio:list", episode))
+    }
+
+    @Test
+    fun `uncached synthetic videos defer to the streams screen only when sources exist`() {
+        val available = PlaybackAvailability(addons = listOf(addon()))
+        assertTrue(available.canStream("series", "chronio:list:x:1:1", "chronio:list"))
+        assertFalse(PlaybackAvailability().canStream("series", "chronio:list:x:1:1", "chronio:list"))
     }
 
     private fun addon() = Addon(
