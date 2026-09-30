@@ -52,9 +52,9 @@ metadata, no secrets beyond its TMDb key.
   The Stremio `catalog`/`meta` routes stay until both apps ship playlists, then
   are removed.
 
-Why a JSON feed rather than Trakt lists as the primary store: free Trakt accounts
-are capped at 5 lists × 250 items (Star Trek alone is 904 entries). Trakt lists
-become a second *source* (§6), not the backbone.
+The curated lists (Chronolists, the Star Trek Viewing Guide) live in this feed;
+Trakt lists are a separate source for playlists you or others curate on Trakt
+(§6).
 
 ## 2. App model (TV)
 
@@ -63,8 +63,9 @@ New package `com.nuvio.tv.core.playlist`:
 - `Playlist(id, name, description, image, entries, source)` and
   `PlaylistEntry(key, type, id, season?, episode?, show?, title?)` with
   `videoId` = `id` or `id:season:episode`.
-- `PlaylistSource` — sealed: `FeedPlaylistSource(indexUrl)` now,
-  `TraktPlaylistSource(listId)` later.
+- `PlaylistSource` — sealed: `FeedPlaylistSource(indexUrl)` and
+  `TraktPlaylistSource(listId)` (§6). Both produce the same `Playlist`, so
+  browsing, playback and next-up never care where a list came from.
 - `PlaylistRepository` — fetches and caches the index and playlists (OkHttp, the
   same pattern as `CollectionManagementViewModel.fetchUrl`); offline falls back
   to the last good copy.
@@ -135,15 +136,45 @@ In the player (`PlayerRuntimeController` reads the session at init):
   non-null season/episode and cannot represent movies. It is suppressed while
   the real show's own Next Up already points at the same episode.
 
-## 6. Sources beyond the feed (later)
+## 6. Trakt lists as playlists
 
-- **Trakt lists**: `GET /lists/{id}/items` without a type filter returns movies,
-  shows, seasons and **episodes** in rank order (the DTO already has `episode`
-  and `show`). Map episode items to entries; expand season items to their
-  episodes. Good for personal lists under the 250-item free cap.
-- **Local lists** edited in the app: a later phase; the same `Playlist` model.
+Any Trakt list can be opened as a playlist, keeping its mixed movie and episode
+order exactly. The existing Collections resolver cannot do this: it requests
+`/lists/{id}/items/movie` and `/items/show` separately, so episodes are dropped
+and the interleaving of movies and shows is lost.
 
-## 7. Phases
+- **Adding**: paste a Trakt list URL or id (reusing
+  `TraktPublicListSourceResolver.parseTraktListPath` and `listImportMetadata`),
+  pick from your own lists (`/users/me/lists`, authenticated), or open one from
+  Trakt search. Private lists need the Trakt login; public lists work with just
+  the app's client id.
+- **Fetching**: `GET /lists/{id}/items` with **no type filter** and
+  `extended=full`, paging through `X-Pagination-Page-Count` until all items are
+  loaded. One request stream keeps every type in the same sequence.
+- **Order**: the list's own `sort_by`/`sort_how` from `GET /lists/{id}` (the
+  order the owner chose on trakt.tv, usually `rank`), applied to the whole
+  mixed list. `rank` ties break by `listed_at`. Never sort per type.
+- **Mapping each item to entries, in place**:
+  - `movie` → one movie entry.
+  - `episode` → one episode entry (`show.ids.imdb` + `episode.season`/`number`).
+  - `season` → that season's episodes in order, expanded at the season's
+    position (episode list from the metadata addon, cached).
+  - `show` → the whole show's aired episodes in order, specials excluded,
+    expanded at the show's position. Shown as one collapsible group on the
+    playlist screen so a 200-episode show doesn't swamp the list.
+  - `person` and items with no IMDb id → skipped and counted in a
+    "N items not playable" note, so gaps are never silent.
+- **Keys** are Trakt's own item id (`id` on the list item) plus, for expansions,
+  `:S:E`. Reordering on trakt.tv keeps progress attached to the right entry.
+- **Freshness**: re-fetched when the playlist screen opens (with the cached copy
+  shown immediately) and at most hourly in the background, via `updated_at` from
+  `GET /lists/{id}`.
+
+## 7. Local lists (later)
+
+Lists edited inside the app, using the same `Playlist` model.
+
+## 8. Phases
 
 1. **Feed**: `/playlists.json` and `/playlists/<id>.json` in chronio-catalog, with
    tests. Keep the Stremio routes for now.
@@ -153,11 +184,12 @@ In the player (`PlayerRuntimeController` reads the session at init):
 3. **TV next**: sessions, playlist-aware next card and autoplay (same-show
    in-player; cross-title relaunch), movie handling, `PlaylistProgressStore`.
 4. **Continue Watching** `PlaylistNext`.
-5. **Desktop** port of 2–4.
-6. **Retire the synthetic approach**: remove the `playbackIdentity` hooks from
+5. **Trakt-list playlists** (§6) on TV.
+6. **Desktop** port of 2–5.
+7. **Retire the synthetic approach**: remove the `playbackIdentity` hooks from
    both forks and the Stremio routes from chronio-catalog, which returns the
    forks closer to upstream.
-7. Trakt-list playlists; local editing.
+8. Local lists.
 
 ## Open questions
 
