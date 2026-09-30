@@ -1,203 +1,175 @@
-# Chronio playlists — design (plan C)
+# Playlists — design
 
-Status: proposal for review. Scope: Android TV first; desktop follows the same model.
+Status: proposal for review (revised 2026-09-30, replaces "plan C").
+Scope: Android TV first; desktop follows the same model.
+File format: [playlist-format.md](playlist-format.md).
 
 ## Goal
 
-Watch movies and episodes from different shows in a curated order (Chronolists,
-the Star Trek Viewing Guide, later your own lists) with everything Nuvio already
-does for normal titles: streams from your stream addons, intro/outro skip, Trakt
-scrobbling and watched state, resume, Continue Watching.
+Playlists as a general Nuvio feature. Chronological watch orders are one use.
 
-The previous approach (a synthetic `chronio:<list>` series whose videos carry a
-`playbackIdentity`) makes fake episodes pass for real ones and needs a hook at
-every place Nuvio reads an ID. Plan C inverts it: a **playlist is an ordered list
-of references to real titles**. Playing an entry opens the real title through the
-normal path; the only new concept is *what plays next*.
+- A playlist autoplays cleanly across anything Nuvio can play: movies,
+  episodes of different shows, and any addon's titles.
+- Nuvio's features and comforts all keep working: streams from the user's
+  addons, intro/outro skip, Trakt, resume, source (binge group) preference,
+  "Still watching?", audio and subtitle preferences.
+- Playlists look and behave as much like a TV show as possible. Sections are
+  shown as seasons and entries as episodes.
+- Playlists are prebuilt static JSON files. The app never builds them, and they
+  are not an addon.
 
-## 1. Playlist feed (server)
+**Upstreaming.** We keep the option of proposing this to Nuvio open. It isn't a
+hard constraint, but a change that makes upstreaming less likely is called out
+when it's made. In practice: no Chronio-specific fields or hosts, additive
+changes to shared components, and no default source URL.
 
-`chronio-catalog` becomes a plain feed publisher. No Stremio protocol, no
-metadata, no secrets beyond its TMDb key.
+## Principles
 
-`GET /playlists.json` — index:
+1. **Play the real title.** An entry opens the real title through Nuvio's
+   normal path. Playback never sees the playlist, so every playback feature
+   works unchanged. The only new behaviour in the player is *what plays next*.
+2. **Show-like presentation, not show-like data.** Playlists reuse Nuvio's show
+   components (season tabs, episode row, cards, player episodes panel, Continue
+   Watching) through a playlist adapter. A playlist is never disguised as an
+   addon series. Faking a series (the earlier `playbackIdentity` approach)
+   needed a hook everywhere the app reads an id, and it is being retired.
+3. **Progress belongs to real titles.** Watched state and resume are the
+   title's own, so watching an episode anywhere counts in every playlist that
+   contains it. The only playlist-specific state is the user's place in the
+   playlist.
 
-```json
-{ "version": 1,
-  "playlists": [
-    { "id": "star-trek", "name": "Star Trek", "description": "…",
-      "image": "https://…", "entries": 904, "source": "chronolists",
-      "updatedAt": "2026-09-30T02:54:00Z", "url": "/playlists/star-trek.json" } ] }
-```
+## 1. Sources and settings
 
-`GET /playlists/<id>.json` — one playlist:
+- **Content & Discovery → Playlists**, beside Addons and Plugins:
+  - Add or remove **source URLs**. Each URL returns an index (see the format).
+  - Each source lists its playlists with an on/off toggle. Disabled playlists
+    don't appear on Home or in search. Identity is `(source URL, playlist id)`.
+  - Refresh action and last-updated / error state per source, like addons.
+- No default source. The current hard-coded tailnet default is removed, which
+  also removes an upstream blocker.
+- Home: each enabled playlist appears in a **Playlists** row. The row takes part
+  in *Reorder home catalogs* like any other row, reusing that existing UI.
+- Caching: last good copy of each index and playlist on disk. Refresh on app
+  start, when a playlist is opened, and at most hourly. Honour
+  `ETag`/`Last-Modified`.
 
-```json
-{ "version": 1, "id": "star-trek", "name": "Star Trek", "description": "…", "image": "…",
-  "entries": [
-    { "key": "series:tt0244365:1:1", "type": "series", "id": "tt0244365",
-      "season": 1, "episode": 1, "show": "Star Trek: Enterprise", "title": "Broken Bow" },
-    { "key": "movie:tt0079945", "type": "movie", "id": "tt0079945",
-      "title": "Star Trek: The Motion Picture" } ] }
-```
+## 2. Playlist screen (the "show page")
 
-- `id` is always an IMDb id; `season`/`episode` are the **real** coordinates of
-  the item actually played (source corrections such as the BSG miniseries →
-  S0E1–2 are applied server-side, as today).
-- `key` is stable across reorders (today's `stableId` minus the list prefix) and
-  is what the app stores playlist position against.
-- `show`/`title` are display hints only; artwork and details come from the
-  user's metadata addons (AIOMetadata/Cinemeta) exactly as for any title.
-- Existing refresh, caching, per-list fallback and health reporting are kept.
-  The Stremio `catalog`/`meta` routes stay until both apps ship playlists, then
-  are removed.
+Built from the detail screen's own composables. The whole
+`MetaDetailsScreen` / `MetaDetailsContent` is not reused, because it is bound
+to an addon `Meta` and its ViewModel.
 
-The curated lists (Chronolists, the Star Trek Viewing Guide) live in this feed;
-Trakt lists are a separate source for playlists you or others curate on Trakt
-(§6).
+- **Hero**: backdrop, logo or name, description, and counts (movies, episodes,
+  total runtime). The primary button is **Resume "Broken Bow"** or **Play**, like
+  a show's. The secondary button is *Start from beginning*. `HeroContentSection`
+  takes a whole `Meta`, so we add a small playlist hero with the same look
+  (upstream-neutral: new code, no change to the shared hero).
+- **Sections as seasons**: `SeasonTabs`, with one additive, optional parameter
+  for labels. Today it only shows numbers and moves 0 to the end. Hidden when
+  there is one section.
+- **Entries as episodes**: `EpisodesRow` and its cards. The row keys progress
+  and watched state by `(season, episode)`, so the adapter gives each entry
+  **display coordinates** (season = section number, episode = position in the
+  section) and a unique id derived from its `key`. It fills the progress and
+  watched maps from each entry's **real** title. Those coordinates exist only
+  on screen; a click maps back to the entry.
+- **Card text**: an episode card from another show should read
+  "Star Trek: Short Treks · S1E3" above "The Brightest Star". That needs one
+  optional subtitle override on the card (additive).
+- **Entry options** (the existing long-press menu): mark watched or unwatched
+  (on the real title), and *mark previous as watched*, which is useful for
+  joining a playlist midway.
+- **Unplayable entries**: shown greyed with a reason, and counted in the hero.
 
-## 2. App model (TV)
+## 3. Playback and next
 
-New package `com.nuvio.tv.core.playlist`:
+Mostly built already (`PlaylistPlaybackSession`, commit `25887179`).
 
-- `Playlist(id, name, description, image, entries, source)` and
-  `PlaylistEntry(key, type, id, season?, episode?, show?, title?)` with
-  `videoId` = `id` or `id:season:episode`.
-- `PlaylistSource` — sealed: `FeedPlaylistSource(indexUrl)` and
-  `TraktPlaylistSource(listId)` (§6). Both produce the same `Playlist`, so
-  browsing, playback and next-up never care where a list came from.
-- `PlaylistRepository` — fetches and caches the index and playlists (OkHttp, the
-  same pattern as `CollectionManagementViewModel.fetchUrl`); offline falls back
-  to the last good copy.
-- `PlaylistSettingsDataStore` — per-profile list of configured sources (one feed
-  URL to start: `https://ambulance.tailbba64e.ts.net:7443/playlists.json`).
+- Starting an entry starts a session at that entry. The player looks up the
+  playing title in the session, and the next entry replaces the show's next
+  episode:
+  - **Same show**: in-player switch (unchanged Nuvio path).
+  - **Different title or a movie**: the player hands off to the Stream screen
+    for the next title, which picks a source the way next-episode autoplay does.
+- **Persisted place**: the session is stored per profile as
+  `(source, playlist id, entry key)`, so it survives restarts and reorders.
+  Playing a title from outside the playlist doesn't change it.
+- **Player episodes panel**: in a playlist, the panel lists the playlist's
+  sections and entries instead of the show's seasons. Picking an entry follows
+  the same rules (same show: switch in place; otherwise hand off). Today the
+  panel reads the show's episodes and can only switch episodes of the current
+  show, so this is a playlist mode, not a data trick.
+- **Binge group**: source preference is remembered per real show, so returning
+  to Discovery prefers the source group last used for Discovery.
 
-Playlists are a **standalone feature, not a Collection source**. The Collections
-mapping showed rows are `MetaPreview` (movie/show only, no episode, no
-position), items open the show's detail page, "All" tabs de-duplicate by show
-id, and ~20 sites switch on source type across the editor, web config server and
-sync. Bending that to ordered episode-level entries would touch the most
-actively developed upstream code. A separate feature touches a handful of files
-and rebases cleanly.
+## 4. Continue Watching
 
-## 3. UI
+- An in-progress entry already appears. It is a normal title, and its card
+  gets "in Star Trek" context.
+- After an entry finishes, the playlist's next entry appears as **Next up**.
+  Episodes map onto the existing `NextUp` item with the real title, so no new
+  item type is needed. Movies can't: `NextUpInfo` requires season and episode,
+  and a new item type touches about 13 files. Proposal: extend `NextUpInfo` to
+  allow a movie (nullable season/episode) behind a playlist flag. **Upstream
+  note:** this changes a shared model, so it needs care.
+- Launching a playlist's Next up restores the session, so autoplay keeps
+  following the playlist.
 
-- **Home row "Playlists"**: one card per playlist (image, name, "12 / 904"
-  progress). Added via the existing home row pipeline as a new `HomeRow` type,
-  toggleable like other rows.
-- **Playlist screen** (`Screen.Playlist(id)`): header with *Continue* (next
-  unwatched entry after the last played) and *Start from beginning*; a vertical
-  list of numbered entries showing show name, SxE, title, still/poster (fetched
-  lazily from the meta addons and cached), and a watched tick.
-- Watched ticks come from the real watched state (`WatchedItemsPreferences` /
-  Trakt), so episodes watched outside the playlist show as watched.
+## 5. Generator (homelab `chronio-catalog`)
 
-## 4. Playback and "next"
+- It stops being a server. It becomes a job that writes the index and one file
+  per playlist following the format. Output is served as static files over
+  Tailscale (the same `:7443`), from a rootless Podman Quadlet.
+- Sources: Chronolists collections and the Star Trek Viewing Guide, with their
+  natural sections (series and eras, the guide's own headings), and **Trakt
+  lists** (below). A daily systemd timer runs it and replaces files atomically,
+  keeping the last good copy per playlist as today.
+- The Stremio `catalog`/`meta` routes and `playbackIdentity` are removed once
+  both apps use playlists.
 
-Selecting an entry navigates to the **Stream screen with the real title**
-(`contentId = id`, `contentType`, `videoId`, `season`, `episode`) plus a new
-route argument `playlistToken`. Nothing downstream needs translating: streams,
-subtitles, skip segments, scrobbling and resume already work for real IDs.
+### Trakt lists
 
-`playlistToken` follows the existing `cloudSessionToken` precedent
-(`CloudLibraryPlaybackSessionStore`): an in-memory map mirrored to
-SharedPreferences holding `PlaylistSession(playlistId, entryIndex)`. The Stream
-screen passes it to the player route.
+Generated like any other source, so the app stays source-agnostic:
 
-In the player (`PlayerRuntimeController` reads the session at init):
+- `GET /lists/{id}/items` with no type filter, paged, in the list's own
+  `sort_by`/`sort_how` applied to the whole mixed list. Never sort per type.
+- `movie` → movie entry; `episode` → episode entry; `season`/`show` → expanded
+  in place into their episodes (specials excluded for shows). An expanded show
+  becomes its own section when the list is otherwise flat.
+- Keys: Trakt's list-item id, plus `:S:E` for expansions.
+- Configured in the generator (list URLs, Trakt client id). Private lists need
+  a token, stored as a Podman secret.
 
-- `recomputeNextEpisode`: when a session is present, `nextEpisode` is the next
-  playlist entry, including movies and other shows. The next-episode card reads
-  "Up next in Star Trek: Star Trek: Enterprise S1E4 · Unexpected".
-- Movies in a playlist use the next-entry card instead of post-play
-  recommendations.
-- Advancing:
-  - **Same show** (e.g. Enterprise S1E3 → S1E4): keep today's in-player switch
-    (`switchToEpisodeStream`), which only changes video/season/episode.
-  - **Different title**: `contentId`/`contentType`/artwork are immutable for the
-    player's lifetime, so the player exits and relaunches through the existing
-    `onPlaybackEnded` → Stream screen path (`NuvioNavHost.kt:954`), made
-    playlist-aware to pass the next entry's real `contentId`/type and the token.
-    Autoplay keeps working through the Stream screen's auto-select
-    (`autoPlayNav`) with the current binge group as a preference.
-  - The session's `entryIndex` is advanced on each switch, and "Still watching?"
-    and the autoplay streak apply as they do today.
+## 6. Phases
 
-## 5. Progress and Continue Watching
-
-- Resume and watched state are native (stored under the real IDs), so nothing
-  new is needed for the entry itself.
-- `PlaylistProgressStore` (per profile): `lastPlayedKey`, `updatedAt` per
-  playlist. It drives *Continue* and the home card's progress.
-- **Continue Watching**: an in-progress entry already appears (it is a normal
-  title). To surface *the next playlist entry* after one finishes, add a
-  `ContinueWatchingItem.PlaylistNext(playlistId, entry)` built from
-  `PlaylistProgressStore`. It is a separate item type because `NextUpInfo` needs
-  non-null season/episode and cannot represent movies. It is suppressed while
-  the real show's own Next Up already points at the same episode.
-
-## 6. Trakt lists as playlists
-
-Any Trakt list can be opened as a playlist, keeping its mixed movie and episode
-order exactly. The existing Collections resolver cannot do this: it requests
-`/lists/{id}/items/movie` and `/items/show` separately, so episodes are dropped
-and the interleaving of movies and shows is lost.
-
-- **Adding**: paste a Trakt list URL or id (reusing
-  `TraktPublicListSourceResolver.parseTraktListPath` and `listImportMetadata`),
-  pick from your own lists (`/users/me/lists`, authenticated), or open one from
-  Trakt search. Private lists need the Trakt login; public lists work with just
-  the app's client id.
-- **Fetching**: `GET /lists/{id}/items` with **no type filter** and
-  `extended=full`, paging through `X-Pagination-Page-Count` until all items are
-  loaded. One request stream keeps every type in the same sequence.
-- **Order**: the list's own `sort_by`/`sort_how` from `GET /lists/{id}` (the
-  order the owner chose on trakt.tv, usually `rank`), applied to the whole
-  mixed list. `rank` ties break by `listed_at`. Never sort per type.
-- **Mapping each item to entries, in place**:
-  - `movie` → one movie entry.
-  - `episode` → one episode entry (`show.ids.imdb` + `episode.season`/`number`).
-  - `season` → that season's episodes in order, expanded at the season's
-    position (episode list from the metadata addon, cached).
-  - `show` → the whole show's aired episodes in order, specials excluded,
-    expanded at the show's position. Shown as one collapsible group on the
-    playlist screen so a 200-episode show doesn't swamp the list.
-  - `person` and items with no IMDb id → skipped and counted in a
-    "N items not playable" note, so gaps are never silent.
-- **Keys** are Trakt's own item id (`id` on the list item) plus, for expansions,
-  `:S:E`. Reordering on trakt.tv keeps progress attached to the right entry.
-- **Freshness**: re-fetched when the playlist screen opens (with the cached copy
-  shown immediately) and at most hourly in the background, via `updated_at` from
-  `GET /lists/{id}`.
-
-## 7. Local lists (later)
-
-Lists edited inside the app, using the same `Playlist` model.
-
-## 8. Phases
-
-1. **Feed**: `/playlists.json` and `/playlists/<id>.json` in chronio-catalog, with
-   tests. Keep the Stremio routes for now.
-2. **TV browse**: repository, settings (feed URL), home row, playlist screen, and
-   entry → Stream screen with the real title. No playlist-aware next yet. This is
-   already usable, with native streams, skip, Trakt and resume.
-3. **TV next**: sessions, playlist-aware next card and autoplay (same-show
-   in-player; cross-title relaunch), movie handling, `PlaylistProgressStore`.
-4. **Continue Watching** `PlaylistNext`.
-5. **Trakt-list playlists** (§6) on TV.
-6. **Desktop** port of 2–5.
-7. **Retire the synthetic approach**: remove the `playbackIdentity` hooks from
-   both forks and the Stremio routes from chronio-catalog, which returns the
-   forks closer to upstream.
-8. Local lists.
+1. **Format**: parser for v1 (indexes, sections, hints, compatibility rules)
+   with tests. Generator writes v1 static files, served beside today's feed.
+2. **Sources UI**: Content & Discovery → Playlists (URLs, per-playlist
+   toggles), multi-source repository, Home row in *Reorder home catalogs*, no
+   default URL.
+3. **Show page**: playlist screen from detail components (hero, sections as
+   season tabs, episode cards with real progress, entry options).
+4. **Playback comforts**: persisted session, playlist mode in the player
+   episodes panel, Continue Watching Next up.
+5. **Trakt lists** in the generator.
+6. **Desktop** port of 1–4.
+7. **Retire the synthetic approach**: remove `playbackIdentity` from both forks
+   and the Stremio routes and old feed from the generator. This moves the forks
+   back toward upstream.
 
 ## Decisions
 
-- No migration of watch progress from the synthetic lists (decided 2026-09-30).
+- No migration of watch progress from the synthetic lists (2026-09-30).
+- Playlists are prebuilt static files; no in-app editing (2026-09-30).
+- Every source URL returns an index, even for one playlist (2026-09-30).
+- Sections are shown as seasons and are chosen by the playlist author
+  (2026-09-30).
+- Keep upstreaming possible and flag changes that hurt it (2026-09-30).
 
 ## Open questions
 
-- Episode stills: fetch per entry from the metadata addon when the playlist
-  screen scrolls (cached), or add optional `image` hints to the feed from TMDb
-  (the server already queries TMDb seasons). Proposal: feed hints, since they're
-  cheaper on TV hardware.
+- Chronolists sections: which grouping to use per list (by series? by era?).
+  Proposal: use Chronolists' own grouping where it has one, otherwise one
+  section.
+- Search: should entries' playlists appear in search results? Proposal: not
+  yet.
