@@ -1662,6 +1662,12 @@ internal fun PlayerRuntimeController.playNextEpisode(userInitiated: Boolean = fa
         return
     }
 
+    if (playlistNextEntry != null) {
+        // A different title: the player's content is fixed, so the screen relaunches playback.
+        _uiState.update { it.copy(postPlayMode = null, playbackEnded = false, playlistHandoffRequested = true) }
+        return
+    }
+
     val episodeForMode = state.nextEpisode ?: nextInfo
     _uiState.update {
         it.copy(

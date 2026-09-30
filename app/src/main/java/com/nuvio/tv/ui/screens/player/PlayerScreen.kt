@@ -153,6 +153,8 @@ fun PlayerScreen(
     onBackPress: (currentVideoId: String?, currentSeason: Int?, currentEpisode: Int?, autoPlayEnabled: Boolean, playbackCompleted: Boolean) -> Unit,
     onPlaybackErrorBack: () -> Unit = { onBackPress(null, null, null, false, false) },
     onPlaybackEnded: ((nextVideoId: String?, nextSeason: Int?, nextEpisode: Int?, exitReason: PlayerExitReason?) -> Unit)? = null,
+    /** Plays the next playlist entry when it is a different title. */
+    onPlaylistNext: ((com.nuvio.tv.core.playlist.PlaylistEntry) -> Unit)? = null,
     onPlayRecommendation: (PostPlayRecommendation, manualSelection: Boolean) -> Unit = { _, _ -> },
     onOpenRecommendationDetails: (PostPlayRecommendation) -> Unit = {}
 ) {
@@ -208,6 +210,15 @@ fun PlayerScreen(
     }
 
     val currentOnPlaybackEnded by rememberUpdatedState(onPlaybackEnded)
+    val currentOnPlaylistNext by rememberUpdatedState(onPlaylistNext)
+    val playlistNextHandoff: (() -> Unit)? = uiState.playlistNext?.let { entry ->
+        currentOnPlaylistNext?.let { cb ->
+            {
+                viewModel.stopAndRelease()
+                cb(entry)
+            }
+        }
+    }
     val currentOnBackPress by rememberUpdatedState(onBackPress)
     val currentOnPlayRecommendation by rememberUpdatedState(onPlayRecommendation)
     val currentOnOpenRecommendationDetails by rememberUpdatedState(onOpenRecommendationDetails)
@@ -231,7 +242,9 @@ fun PlayerScreen(
     }
     val continueToNextEpisodeFromEndPrompt = {
         val next = nextEpisodeForEndPrompt
-        if (next != null) {
+        if (next != null && playlistNextHandoff != null) {
+            playlistNextHandoff()
+        } else if (next != null) {
             viewModel.stopAndRelease()
             val cb = currentOnPlaybackEnded
             if (cb != null) {
@@ -354,8 +367,13 @@ fun PlayerScreen(
                 viewModel.consumePendingExitReason()
             }
             shouldDispatchNatural -> {
-                viewModel.stopAndRelease()
                 val next = uiState.nextEpisode?.takeIf { it.hasAired }
+                val handoff = playlistNextHandoff
+                if (next != null && handoff != null) {
+                    handoff()
+                    return@LaunchedEffect
+                }
+                viewModel.stopAndRelease()
                 val cb = currentOnPlaybackEnded
                 if (cb != null) {
                     cb(next?.videoId, next?.season, next?.episode, null)
@@ -370,6 +388,10 @@ fun PlayerScreen(
                 }
             }
         }
+    }
+
+    LaunchedEffect(uiState.playlistHandoffRequested) {
+        if (uiState.playlistHandoffRequested) playlistNextHandoff?.invoke()
     }
 
     // Handle lifecycle events

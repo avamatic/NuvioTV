@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nuvio.tv.core.playlist.Playlist
 import com.nuvio.tv.core.playlist.PlaylistEntry
+import com.nuvio.tv.core.playlist.PlaylistPlaybackSession
 import com.nuvio.tv.core.playlist.PlaylistRepository
 import com.nuvio.tv.core.playlist.PlaylistSelection
 import com.nuvio.tv.core.playlist.playlistWatchedKey
@@ -40,6 +41,7 @@ data class PlaylistUiState(
 class PlaylistViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val playlistRepository: PlaylistRepository,
+    private val playbackSession: PlaylistPlaybackSession,
     watchProgressRepository: WatchProgressRepository
 ) : ViewModel() {
 
@@ -84,6 +86,11 @@ class PlaylistViewModel @Inject constructor(
         }
             .flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PlaylistUiState())
+
+    /** Makes [entry] the active playlist position so the player continues through the playlist. */
+    fun startPlayback(entry: PlaylistEntry) {
+        load.value.playlist?.let { playbackSession.start(it, entry) }
+    }
 
     init {
         viewModelScope.launch {

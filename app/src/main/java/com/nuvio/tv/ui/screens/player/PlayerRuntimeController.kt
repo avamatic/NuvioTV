@@ -95,6 +95,7 @@ class PlayerRuntimeController(
     internal val cloudLibraryRepository: CloudLibraryRepository,
     internal val cloudPlaybackProgressStore: CloudLibraryPlaybackProgressStore,
     internal val cloudPlaybackSessionStore: CloudLibraryPlaybackSessionStore,
+    internal val playlistPlaybackSession: com.nuvio.tv.core.playlist.PlaylistPlaybackSession,
     internal val streamBadgePresentation: com.nuvio.tv.core.streams.StreamBadgePresentation,
     internal val playbackIssueReportRepository: PlaybackIssueReportRepository,
     internal val tvRecommendationManager: com.nuvio.tv.core.recommendations.TvRecommendationManager,
@@ -425,6 +426,8 @@ class PlayerRuntimeController(
     internal var metaCountry: String? = null
     internal var metaFetchJob: Job? = null
     internal var nextEpisodeVideo: Video? = null
+    /** Next playlist entry when it is a different title, which the player cannot switch to in place. */
+    internal var playlistNextEntry: com.nuvio.tv.core.playlist.PlaylistEntry? = null
     internal var userPausedManually = false
 
     internal var isInBackground: Boolean = false

@@ -268,20 +268,7 @@ private fun PlaybackNavHost(
         ) {
             com.nuvio.tv.ui.screens.playlist.PlaylistScreen(
                 onPlayEntry = { entry, playlistName ->
-                    navController.navigate(
-                        Screen.Stream.createRoute(
-                            videoId = entry.videoId,
-                            contentType = if (entry.isMovie) "movie" else "series",
-                            title = entry.show ?: entry.title ?: playlistName,
-                            poster = entry.image,
-                            backdrop = entry.image,
-                            season = entry.season,
-                            episode = entry.episode,
-                            episodeName = if (entry.isMovie) null else entry.title,
-                            contentId = entry.id,
-                            contentName = entry.show ?: entry.title ?: playlistName
-                        )
-                    )
+                    navController.navigate(playlistEntryStreamRoute(entry, playlistName))
                 },
                 onBack = { navController.popBackStack() }
             )
@@ -518,6 +505,11 @@ private fun PlaybackNavHost(
                     defaultValue = null
                 },
                 navArgument("manualSelection") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = "false"
+                },
+                navArgument("playlistNext") {
                     type = NavType.StringType
                     nullable = true
                     defaultValue = "false"
@@ -878,6 +870,17 @@ private fun PlaybackNavHost(
             }
 
             PlayerScreen(
+                onPlaylistNext = { entry ->
+                    val route = playlistEntryStreamRoute(
+                        entry = entry,
+                        fallbackTitle = backStackEntry.arguments?.getString("contentName").orEmpty(),
+                        playlistNext = true,
+                        profileId = backStackEntry.arguments?.getString("profileId")?.toIntOrNull()
+                    )
+                    navController.navigate(route) {
+                        popUpTo(Screen.Player.route) { inclusive = true }
+                    }
+                },
                 onBackPress = { currentVideoId, currentSeason, currentEpisode, autoPlayEnabled, playbackCompleted ->
                     val args = backStackEntry.arguments
                     val initialSeason = args?.getString("season")?.toIntOrNull()
@@ -1473,3 +1476,24 @@ private fun PlaybackNavHost(
         }
     }
 }
+
+/** Stream screen for a playlist entry's real title. */
+private fun playlistEntryStreamRoute(
+    entry: com.nuvio.tv.core.playlist.PlaylistEntry,
+    fallbackTitle: String,
+    playlistNext: Boolean = false,
+    profileId: Int? = null
+): String = Screen.Stream.createRoute(
+    videoId = entry.videoId,
+    contentType = if (entry.isMovie) "movie" else "series",
+    title = entry.show ?: entry.title ?: fallbackTitle,
+    poster = entry.image,
+    backdrop = entry.image,
+    season = entry.season,
+    episode = entry.episode,
+    episodeName = if (entry.isMovie) null else entry.title,
+    contentId = entry.id,
+    contentName = entry.show ?: entry.title ?: fallbackTitle,
+    profileId = profileId,
+    playlistNext = playlistNext
+)

@@ -148,6 +148,9 @@ class StreamScreenViewModel @Inject constructor(
     private val manualSelection: Boolean = savedStateHandle.get<String>("manualSelection")
         ?.toBooleanStrictOrNull()
         ?: false
+    private val playlistNext: Boolean = savedStateHandle.get<String>("playlistNext")
+        ?.toBooleanStrictOrNull()
+        ?: false
     private val streamCacheKey: String = "${contentType.lowercase()}|$videoId"
 
     private val _uiState = MutableStateFlow(
@@ -365,6 +368,7 @@ class StreamScreenViewModel @Inject constructor(
             streamLoadCompleted = false
             resolveStreamTarget()
             val playerSettings = playerSettingsDataStore.playerSettings.first()
+                .let { if (playlistNext) it.forPlaylistNext() else it }
             if (manualSelection) {
                 directAutoPlayModeInitializedForSession = true
                 directAutoPlayFlowEnabledForSession = false
@@ -1940,3 +1944,19 @@ private fun formatSpeed(context: android.content.Context, bytesPerSec: Long): St
 
 private fun formatMB(context: android.content.Context, bytes: Long): String =
     context.getString(R.string.unit_size_mb, String.format("%.1f", bytes / 1_048_576.0))
+
+/**
+ * Continuing a playlist into another title picks a source the way the player's next-episode
+ * autoplay does: with autoplay-next enabled, manual mode falls back to the first stream.
+ */
+private fun PlayerSettings.forPlaylistNext(): PlayerSettings =
+    if (streamAutoPlayMode == StreamAutoPlayMode.MANUAL && streamAutoPlayNextEpisodeEnabled) {
+        copy(
+            streamAutoPlayMode = StreamAutoPlayMode.FIRST_STREAM,
+            streamAutoPlaySource = com.nuvio.tv.data.local.StreamAutoPlaySource.ALL_SOURCES,
+            streamAutoPlaySelectedAddons = emptySet(),
+            streamAutoPlaySelectedPlugins = emptySet()
+        )
+    } else {
+        this
+    }

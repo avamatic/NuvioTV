@@ -182,6 +182,10 @@ data class PlayerUiState(
     val isNextEpisodeMetadataResolved: Boolean = false,
     val postPlayMode: PostPlayMode? = null,
     val postPlayDismissedForCurrentEpisode: Boolean = false,
+    /** Next playlist entry when it is a different title; ending playback opens it instead of [nextEpisode]. */
+    val playlistNext: com.nuvio.tv.core.playlist.PlaylistEntry? = null,
+    /** Set when the player should hand playback over to [playlistNext]. */
+    val playlistHandoffRequested: Boolean = false,
     val streamAutoPlayMode: StreamAutoPlayMode = StreamAutoPlayMode.MANUAL,
     val streamAutoPlayNextEpisodeEnabled: Boolean = false,
     val streamAutoPlayPreferBingeGroupForNextEpisode: Boolean = false,

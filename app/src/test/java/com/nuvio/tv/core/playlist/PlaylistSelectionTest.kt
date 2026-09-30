@@ -71,4 +71,25 @@ class PlaylistSelectionTest {
     fun `an empty playlist has no target`() {
         assertNull(PlaylistSelection.continueTarget(emptyList(), emptySet()))
     }
+
+    @Test
+    fun `locates episodes by real coordinates and movies by id`() {
+        assertEquals(1, PlaylistSelection.locate(entries, 0, "tt1", 1, 2))
+        assertEquals(2, PlaylistSelection.locate(entries, 0, "tt9", null, null))
+        assertEquals(3, PlaylistSelection.locate(entries, 0, "tt2", 1, 1))
+    }
+
+    @Test
+    fun `locate searches forward from the current position`() {
+        val repeated = entries + episode("tt1", 1, 1)
+        assertEquals(4, PlaylistSelection.locate(repeated, 1, "tt1", 1, 1))
+        assertNull(PlaylistSelection.locate(entries, 2, "tt1", 1, 2))
+    }
+
+    @Test
+    fun `locate ignores titles outside the playlist`() {
+        assertNull(PlaylistSelection.locate(entries, 0, "tt1", 0, 2))
+        assertNull(PlaylistSelection.locate(entries, 0, "tt5", null, null))
+        assertNull(PlaylistSelection.locate(entries, 0, null, null, null))
+    }
 }

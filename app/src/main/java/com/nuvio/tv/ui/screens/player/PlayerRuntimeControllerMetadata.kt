@@ -2,11 +2,14 @@ package com.nuvio.tv.ui.screens.player
 
 import com.nuvio.tv.R
 import com.nuvio.tv.core.network.NetworkResult
+import com.nuvio.tv.core.playlist.PLAYLIST_ENTRY_TYPE_MOVIE
+import com.nuvio.tv.core.playlist.PlaylistEntry
 import com.nuvio.tv.data.local.AutoSkipSegmentType
 import com.nuvio.tv.data.repository.SkipInterval
 import com.nuvio.tv.domain.model.ContentType
 import com.nuvio.tv.domain.model.Meta
 import com.nuvio.tv.domain.model.Stream
+import com.nuvio.tv.domain.model.Video
 import com.nuvio.tv.domain.model.resolveContentLanguage
 import com.nuvio.tv.domain.model.normalizeLanguageCode
 import com.nuvio.tv.data.local.AudioLanguageOption
@@ -27,6 +30,8 @@ internal fun PlayerRuntimeController.fetchMetaDetails(id: String?, type: String?
                 applyMetaDetails(result.data)
             }
             is NetworkResult.Error -> {
+                // Playlist playback knows its next entry without the title's metadata.
+                recomputeNextEpisode(resetVisibility = false)
             }
             NetworkResult.Loading -> {
             }
@@ -221,6 +226,7 @@ private suspend fun PlayerRuntimeController.enrichDescriptionFromTmdb(id: String
 }
 
 internal fun PlayerRuntimeController.recomputeNextEpisode(resetVisibility: Boolean) {
+    if (recomputePlaylistNext(resetVisibility)) return
     val normalizedType = contentType?.lowercase()
     if (normalizedType !in listOf("series", "tv", "other", "cloud")) {
         nextEpisodeVideo = null
@@ -290,6 +296,68 @@ internal fun PlayerRuntimeController.recomputeNextEpisode(resetVisibility: Boole
         }
     )
     applyRecomputedNextEpisode(nextInfo, resetVisibility)
+}
+
+/**
+ * While playing through a playlist, "next" is the playlist's next entry rather than the show's
+ * next episode. Returns false when the current title is not playing from a playlist.
+ */
+private fun PlayerRuntimeController.recomputePlaylistNext(resetVisibility: Boolean): Boolean {
+    val isEpisode = !contentType.equals(PLAYLIST_ENTRY_TYPE_MOVIE, ignoreCase = true)
+    val position = playlistPlaybackSession.locate(
+        contentId = contentId,
+        season = currentSeason.takeIf { isEpisode },
+        episode = currentEpisode.takeIf { isEpisode }
+    )
+    val next = position?.next
+    val sameShow = next != null && !next.isMovie && isEpisode && next.id == contentId
+    playlistNextEntry = next.takeUnless { sameShow }
+    _uiState.update { it.copy(playlistNext = playlistNextEntry) }
+    if (position == null) return false
+    if (next == null) {
+        nextEpisodeVideo = null
+        clearNextEpisodeAndCancelPostPlay()
+        return true
+    }
+
+    val nextVideo = metaVideos
+        .takeIf { sameShow }
+        ?.firstOrNull { it.season == next.season && it.episode == next.episode }
+        ?: Video(
+            id = next.videoId,
+            title = next.title ?: next.show ?: next.id,
+            released = null,
+            thumbnail = next.image,
+            season = next.season,
+            episode = next.episode,
+            overview = null
+        )
+    nextEpisodeVideo = nextVideo
+    val nextInfo = NextEpisodeInfo(
+        videoId = nextVideo.id,
+        season = next.season ?: 0,
+        episode = next.episode ?: 0,
+        title = if (sameShow) nextVideo.title else playlistEntryLabel(next),
+        thumbnail = nextVideo.thumbnail ?: next.image,
+        overview = nextVideo.overview,
+        released = nextVideo.released,
+        hasAired = true,
+        unairedMessage = null,
+        // Another title: show its full label instead of this show's S/E numbering.
+        isOtherType = !sameShow
+    )
+    applyRecomputedNextEpisode(nextInfo, resetVisibility)
+    return true
+}
+
+/** "Star Trek: Short Treks · S1E3 · The Brightest Star", or the title alone for a movie. */
+internal fun playlistEntryLabel(entry: PlaylistEntry): String {
+    val code = if (!entry.isMovie && entry.season != null && entry.episode != null) {
+        "S${entry.season}E${entry.episode}"
+    } else {
+        null
+    }
+    return listOfNotNull(entry.show, code, entry.title).distinct().joinToString(" · ").ifBlank { entry.id }
 }
 
 private fun PlayerRuntimeController.clearNextEpisodeAndCancelPostPlay() {

@@ -66,6 +66,12 @@ fun PlaylistScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     BackHandler(onBack = onBack)
+    val playEntry: (PlaylistEntry) -> Unit = { entry ->
+        uiState.playlist?.let { playlist ->
+            viewModel.startPlayback(entry)
+            onPlayEntry(entry, playlist.name)
+        }
+    }
 
     val playlist = uiState.playlist
     if (playlist == null) {
@@ -152,7 +158,7 @@ fun PlaylistScreen(
             Spacer(modifier = Modifier.height(NuvioTheme.spacing.xs))
             Button(
                 onClick = {
-                    entries.getOrNull(uiState.continueIndex)?.let { onPlayEntry(it, playlist.name) }
+                    entries.getOrNull(uiState.continueIndex)?.let(playEntry)
                 },
                 enabled = uiState.continueIndex >= 0,
                 modifier = Modifier
@@ -166,7 +172,7 @@ fun PlaylistScreen(
                 Text(stringResource(R.string.playlist_action_continue))
             }
             Button(
-                onClick = { entries.firstOrNull()?.let { onPlayEntry(it, playlist.name) } },
+                onClick = { entries.firstOrNull()?.let(playEntry) },
                 enabled = entries.isNotEmpty(),
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.colors(
@@ -204,7 +210,7 @@ fun PlaylistScreen(
                         position = index + 1,
                         entry = entry,
                         watched = entry.watchedKey in uiState.watchedKeys,
-                        onClick = { onPlayEntry(entry, playlist.name) }
+                        onClick = { playEntry(entry) }
                     )
                 }
             }
