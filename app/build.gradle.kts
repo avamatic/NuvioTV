@@ -154,7 +154,7 @@ android {
         create("full") {
             dimension = "distribution"
             buildConfigField("boolean", "FEATURE_PLUGINS_ENABLED", "true")
-            // Chronio fork: upstream releases would install the official app, not this fork.
+            // Chronio: upstream releases would install the official Nuvio app, not Chronio.
             buildConfigField("boolean", "FEATURE_IN_APP_UPDATES_ENABLED", "false")
             buildConfigField("boolean", "FEATURE_IN_APP_TRAILERS_ENABLED", "true")
             buildConfigField("boolean", "FEATURE_EXTERNAL_TRAILERS_ENABLED", "true")
