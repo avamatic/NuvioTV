@@ -35,6 +35,7 @@ RULES = [  # (glob, kind)
     ('app/src/main/res/mipmap-*/ic_launcher*.png', 'icon'),
     ('app/src/main/res/mipmap-*/banner*.png', 'banner'),
     ('app/src/main/res/drawable*/app_logo_mark.png', 'icon'),
+    ('app/src/main/res/drawable*/tv_banner.png', 'banner'),
     ('app/src/main/res/drawable*/app_logo_wordmark*.png', 'wordmark'),
     ('app/src/main/res/drawable*/nuvio_text.png', 'text'),
     ('composeApp/src/commonMain/composeResources/drawable/app_icon_*_transparent.png', 'mark'),
