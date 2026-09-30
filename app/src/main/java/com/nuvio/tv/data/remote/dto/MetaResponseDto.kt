@@ -90,17 +90,17 @@ data class VideoDto(
     @Json(name = "runtime") val runtime: String? = null,
     @Json(name = "rating") val rating: String? = null,
     @Json(name = "available") val available: Boolean? = null,
-    @Json(name = "trackingIdentity") val trackingIdentity: VideoTrackingIdentityDto? = null
+    @Json(name = "playbackIdentity") val playbackIdentity: VideoPlaybackIdentityDto? = null
 )
 
 /**
  * Optional real-world identity for a video whose addon uses synthetic IDs and
  * numbering (for example a chronological list spanning several shows). When
- * present it is used for tracking scrobbles and skip-segment lookups instead of
- * the parent meta and the synthetic season/episode.
+ * present it is used for stream searches, tracking scrobbles and skip-segment
+ * lookups instead of the parent meta and the synthetic season/episode.
  */
 @JsonClass(generateAdapter = true)
-data class VideoTrackingIdentityDto(
+data class VideoPlaybackIdentityDto(
     @Json(name = "type") val type: String? = null,
     @Json(name = "id") val id: String? = null,
     @Json(name = "name") val name: String? = null,

@@ -162,7 +162,13 @@ internal fun PlayerRuntimeController.loadSourceStreams(forceRefresh: Boolean) {
     val seasonArg: Int?
     val episodeArg: Int?
 
-    if (contentType in listOf("series", "tv") && currentSeason != null && currentEpisode != null) {
+    val identity = currentVideoPlaybackIdentity()
+    if (identity != null) {
+        type = identity.type
+        vid = identity.videoId
+        seasonArg = identity.season
+        episodeArg = identity.episode
+    } else if (contentType in listOf("series", "tv") && currentSeason != null && currentEpisode != null) {
         type = contentType ?: return
         vid = currentVideoId ?: contentId ?: return
         seasonArg = currentSeason
@@ -1136,13 +1142,15 @@ internal fun PlayerRuntimeController.loadStreamsForEpisode(video: Video, forceRe
         var debridPreparationLaunched = false
 
         // Initialize episode source chips with LOADING status
-        updateEpisodeSourceChipsForFetchStart(type, video.id, installedAddons)
+        val identity = video.playbackIdentity
+        val streamType = identity?.type ?: type
+        updateEpisodeSourceChipsForFetchStart(streamType, identity?.videoId ?: video.id, installedAddons)
 
         streamRepository.getStreamsFromAllAddons(
-            type = type,
-            videoId = video.id,
-            season = video.season,
-            episode = video.episode,
+            type = streamType,
+            videoId = identity?.videoId ?: video.id,
+            season = if (identity != null) identity.season else video.season,
+            episode = if (identity != null) identity.episode else video.episode,
             forceRefresh = forceRefresh
         ).collect { result ->
             when (result) {
@@ -1776,11 +1784,12 @@ internal fun PlayerRuntimeController.playNextEpisode(userInitiated: Boolean = fa
             val timeoutSeconds = playerSettings.streamAutoPlayTimeoutSeconds
 
             val innerJob = launch {
+                val nextIdentity = nextVideo.playbackIdentity
                 streamRepository.getStreamsFromAllAddons(
-                    type = type,
-                    videoId = nextVideo.id,
-                    season = nextVideo.season,
-                    episode = nextVideo.episode
+                    type = nextIdentity?.type ?: type,
+                    videoId = nextIdentity?.videoId ?: nextVideo.id,
+                    season = if (nextIdentity != null) nextIdentity.season else nextVideo.season,
+                    episode = if (nextIdentity != null) nextIdentity.episode else nextVideo.episode
                 ).collect { result ->
                     when (result) {
                         is NetworkResult.Success -> {

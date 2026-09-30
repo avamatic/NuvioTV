@@ -793,7 +793,7 @@ internal fun PlayerRuntimeController.refreshScrobbleItem() {
 
 internal fun PlayerRuntimeController.buildScrobbleItem(): TrackingMediaReference? {
     val rawContentId = contentId ?: return null
-    currentVideoTrackingIdentity()?.let { identity ->
+    currentVideoPlaybackIdentity()?.let { identity ->
         return buildTrackingMediaReference(
             contentType = identity.type,
             parentMetaId = identity.id,

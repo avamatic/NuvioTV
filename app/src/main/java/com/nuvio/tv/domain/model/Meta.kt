@@ -197,12 +197,12 @@ data class Video(
     /** Per-episode rating supplied by the addon, when it provides one. */
     val rating: Double? = null,
     val available: Boolean? = null,
-    val trackingIdentity: VideoTrackingIdentity? = null
+    val playbackIdentity: VideoPlaybackIdentity? = null
 )
 
-/** Real-world identity of a video exposed by an addon with synthetic IDs. */
+/** Real-world identity of the item a synthetic addon video plays (streams, tracking, skip segments). */
 @Immutable
-data class VideoTrackingIdentity(
+data class VideoPlaybackIdentity(
     val type: String,
     val id: String,
     val name: String? = null,

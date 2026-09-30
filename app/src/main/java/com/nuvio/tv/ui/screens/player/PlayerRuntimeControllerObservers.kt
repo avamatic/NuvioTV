@@ -609,7 +609,7 @@ internal fun PlayerRuntimeController.fetchSkipIntervals(id: String?, season: Int
     if (!skipIntroEnabled) return
     if (id.isNullOrBlank()) return
 
-    currentVideoTrackingIdentity()?.let { identity ->
+    currentVideoPlaybackIdentity()?.let { identity ->
         val key = "identity:${identity.type}:${identity.videoId}"
         if (skipIntroFetchedKey == key) return
         skipIntroFetchedKey = key

@@ -1,5 +1,6 @@
 package com.nuvio.tv.ui.screens.stream
 
+import com.nuvio.tv.data.repository.resolvePlaybackIdentity
 import android.content.Context
 import android.util.Log
 import androidx.lifecycle.SavedStateHandle
@@ -126,6 +127,16 @@ class StreamScreenViewModel @Inject constructor(
     private val season: Int? = savedStateHandle.get<String>("season")?.toIntOrNull()
     private val episode: Int? = savedStateHandle.get<String>("episode")?.toIntOrNull()
     private val episodeName: String? = savedStateHandle.getOptionalString("episodeName")
+
+    /** What streams are searched for; differs from the navigation target for addon playback identities. */
+    private data class StreamTarget(val type: String, val videoId: String, val season: Int?, val episode: Int?)
+    @Volatile private var streamTarget = StreamTarget(contentType, videoId, season, episode)
+
+    private suspend fun resolveStreamTarget(): StreamTarget {
+        val identity = metaRepository.resolvePlaybackIdentity(contentType, contentId, videoId)
+        return (identity?.let { StreamTarget(it.type, it.videoId, it.season, it.episode) }
+            ?: StreamTarget(contentType, videoId, season, episode)).also { streamTarget = it }
+    }
     private val runtime: Int? = savedStateHandle.get<String>("runtime")?.toIntOrNull()
     private val genres: String? = savedStateHandle.getOptionalString("genres")
     private val year: String? = savedStateHandle.getOptionalString("year")
@@ -352,6 +363,7 @@ class StreamScreenViewModel @Inject constructor(
         streamLoadScope = newScope
         streamLoadJob = newScope.launch {
             streamLoadCompleted = false
+            resolveStreamTarget()
             val playerSettings = playerSettingsDataStore.playerSettings.first()
             if (manualSelection) {
                 directAutoPlayModeInitializedForSession = true
@@ -653,11 +665,12 @@ class StreamScreenViewModel @Inject constructor(
             }
 
             val streamLoadInner = launch {
+                val target = streamTarget
                 streamRepository.getStreamsFromAllAddons(
-                    type = contentType,
-                    videoId = videoId,
-                    season = season,
-                    episode = episode,
+                    type = target.type,
+                    videoId = target.videoId,
+                    season = target.season,
+                    episode = target.episode,
                     forceRefresh = forceRefresh
                 ).collect { result ->
                     when (result) {
@@ -913,14 +926,14 @@ class StreamScreenViewModel @Inject constructor(
         alreadySucceededNames: Set<String> = emptySet()
     ) {
         val addonNames = installedAddons
-            .filter { it.supportsStreamResourceForChip(contentType) }
+            .filter { it.supportsStreamResourceForChip(streamTarget.type) }
             .map { it.displayName }
 
         val pluginNames = try {
             if (pluginManager.pluginsEnabled.first()) {
                 val groupByRepository = pluginManager.groupStreamsByRepository.first()
                 val scrapers = pluginManager.enabledScrapers.first()
-                    .filter { it.supportsType(contentType) }
+                    .filter { it.supportsType(streamTarget.type) }
                 if (groupByRepository) {
                     val repositoriesById = pluginManager.repositories.first().associateBy { it.id }
                     scrapers
@@ -1036,7 +1049,7 @@ class StreamScreenViewModel @Inject constructor(
                 run {
                     val prefixes = resource.idPrefixes?.takeIf { it.isNotEmpty() }
                         ?: idPrefixes.takeIf { it.isNotEmpty() }
-                    prefixes == null || prefixes.any { prefix -> videoId.startsWith(prefix) }
+                    prefixes == null || prefixes.any { prefix -> streamTarget.videoId.startsWith(prefix) }
                 }
         }
     }

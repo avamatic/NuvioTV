@@ -3,13 +3,13 @@ package com.nuvio.tv.data.mapper
 import com.nuvio.tv.data.remote.dto.MetaDto
 import com.nuvio.tv.data.remote.dto.MetaLinkDto
 import com.nuvio.tv.data.remote.dto.VideoDto
-import com.nuvio.tv.data.remote.dto.VideoTrackingIdentityDto
+import com.nuvio.tv.data.remote.dto.VideoPlaybackIdentityDto
 import com.nuvio.tv.domain.model.ContentType
 import com.nuvio.tv.domain.model.Meta
 import com.nuvio.tv.domain.model.MetaLink
 import com.nuvio.tv.domain.model.PosterShape
 import com.nuvio.tv.domain.model.Video
-import com.nuvio.tv.domain.model.VideoTrackingIdentity
+import com.nuvio.tv.domain.model.VideoPlaybackIdentity
 
 fun MetaDto.toDomain(episodeLabel: String = "Episode"): Meta {
     val directorMembers = mapPeople(appExtras?.directors, roleFallback = "Director", forceRole = true)
@@ -84,15 +84,15 @@ fun VideoDto.toDomain(episodeLabel: String = "Episode"): Video {
         runtime = parseEpisodeRuntimeMinutes(runtime),
         rating = rating?.trim()?.toDoubleOrNull()?.takeIf { it > 0.0 },
         available = available,
-        trackingIdentity = trackingIdentity?.toDomain()
+        playbackIdentity = playbackIdentity?.toDomain()
     )
 }
 
-fun VideoTrackingIdentityDto.toDomain(): VideoTrackingIdentity? {
+fun VideoPlaybackIdentityDto.toDomain(): VideoPlaybackIdentity? {
     val normalizedType = type?.trim()?.lowercase()?.takeIf { it == "movie" || it == "series" } ?: return null
     val normalizedId = id?.trim()?.takeIf { it.matches(Regex("tt\\d+")) } ?: return null
     if (normalizedType == "series" && (season == null || episode == null || season < 0 || episode < 0)) return null
-    return VideoTrackingIdentity(
+    return VideoPlaybackIdentity(
         type = normalizedType,
         id = normalizedId,
         name = name?.trim()?.takeIf(String::isNotBlank),
