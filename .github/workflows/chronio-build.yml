@@ -1,0 +1,67 @@
+name: Chronio Fork Build
+
+on:
+  push:
+    branches: [chronio]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chronio-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build fullRelease APK
+    runs-on: ubuntu-latest
+    env:
+      LOCAL_PROPERTIES_BASE64: ${{ secrets.CHRONIO_LOCAL_PROPERTIES_BASE64 }}
+      KEYSTORE_BASE64: ${{ secrets.CHRONIO_KEYSTORE_BASE64 }}
+      KEYSTORE_PASSWORD: ${{ secrets.CHRONIO_KEYSTORE_PASSWORD }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Prepare local properties and signing
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ]; then
+            echo "CHRONIO_KEYSTORE_BASE64 and CHRONIO_KEYSTORE_PASSWORD are required so updates install over the fork." >&2
+            exit 1
+          fi
+          if [ -n "$LOCAL_PROPERTIES_BASE64" ]; then
+            printf '%s' "$LOCAL_PROPERTIES_BASE64" | base64 --decode > local.properties
+          else
+            touch local.properties
+          fi
+          touch local.dev.properties
+          keystore_path="$RUNNER_TEMP/chronio.jks"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$keystore_path"
+          {
+            echo "NUVIO_RELEASE_STORE_FILE=$keystore_path"
+            echo "NUVIO_RELEASE_KEY_ALIAS=chronio"
+            echo "NUVIO_RELEASE_KEY_PASSWORD=$KEYSTORE_PASSWORD"
+            echo "NUVIO_RELEASE_STORE_PASSWORD=$KEYSTORE_PASSWORD"
+          } >> "$GITHUB_ENV"
+
+      - name: Test and build fullRelease APK
+        run: ./gradlew :app:testFullReleaseUnitTest --tests 'com.nuvio.tv.data.mapper.*' :app:assembleFullRelease --stacktrace
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v6
+        with:
+          name: nuviotv-chronio-${{ github.sha }}
+          path: app/build/outputs/apk/full/release/*.apk
+          if-no-files-found: error
+          retention-days: 14

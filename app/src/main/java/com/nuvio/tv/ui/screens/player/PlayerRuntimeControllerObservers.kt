@@ -609,6 +609,22 @@ internal fun PlayerRuntimeController.fetchSkipIntervals(id: String?, season: Int
     if (!skipIntroEnabled) return
     if (id.isNullOrBlank()) return
 
+    currentVideoTrackingIdentity()?.let { identity ->
+        val key = "identity:${identity.type}:${identity.videoId}"
+        if (skipIntroFetchedKey == key) return
+        skipIntroFetchedKey = key
+        scope.launch {
+            skipIntervals = withTimeoutOrNull(15_000L) {
+                if (identity.isMovie) {
+                    skipIntroRepository.getMovieSkipIntervals(identity.id)
+                } else {
+                    skipIntroRepository.getSkipIntervals(identity.id, identity.season ?: 0, identity.episode ?: 0)
+                }
+            } ?: emptyList()
+        }
+        return
+    }
+
     // Prefer videoId over contentId — videoId carries the season/episode-specific ID
     val effectiveId = currentVideoId?.takeIf { it.isNotBlank() } ?: id
 

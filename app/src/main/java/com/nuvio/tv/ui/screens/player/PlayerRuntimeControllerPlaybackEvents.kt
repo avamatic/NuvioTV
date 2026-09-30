@@ -24,6 +24,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 internal const val AUDIO_AMPLIFICATION_MIN_DB = 0
 internal const val AUDIO_AMPLIFICATION_MAX_DB = 10
@@ -792,6 +793,16 @@ internal fun PlayerRuntimeController.refreshScrobbleItem() {
 
 internal fun PlayerRuntimeController.buildScrobbleItem(): TrackingMediaReference? {
     val rawContentId = contentId ?: return null
+    currentVideoTrackingIdentity()?.let { identity ->
+        return buildTrackingMediaReference(
+            contentType = identity.type,
+            parentMetaId = identity.id,
+            videoId = identity.videoId,
+            title = identity.name,
+            seasonNumber = identity.season,
+            episodeNumber = identity.episode
+        )
+    }
     val reference = buildTrackingMediaReference(
         contentType = contentType ?: "movie",
         parentMetaId = rawContentId,
@@ -838,6 +849,8 @@ internal fun PlayerRuntimeController.emitScrobbleStart() {
         // Wait for the episode mapping to finish (with its own timeout) so that
         // the scrobble start is sent with the correct season/episode number.
         traktMappingJob?.join()
+        // Addon-supplied tracking identities arrive with the meta; give it a moment.
+        withTimeoutOrNull(5_000L) { metaFetchJob?.join() }
         currentScrobbleItem = buildScrobbleItem()
         val item = currentScrobbleItem
         if (item == null) {

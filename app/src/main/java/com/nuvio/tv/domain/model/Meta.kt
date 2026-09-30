@@ -196,8 +196,26 @@ data class Video(
     val runtime: Int? = null, // episode runtime in minutes
     /** Per-episode rating supplied by the addon, when it provides one. */
     val rating: Double? = null,
-    val available: Boolean? = null
+    val available: Boolean? = null,
+    val trackingIdentity: VideoTrackingIdentity? = null
 )
+
+/** Real-world identity of a video exposed by an addon with synthetic IDs. */
+@Immutable
+data class VideoTrackingIdentity(
+    val type: String,
+    val id: String,
+    val name: String? = null,
+    val season: Int? = null,
+    val episode: Int? = null
+) {
+    val isMovie: Boolean
+        get() = type.equals("movie", ignoreCase = true)
+
+    /** Stremio-style video ID for the real item, e.g. `tt0092455:3:15`. */
+    val videoId: String
+        get() = if (isMovie || season == null || episode == null) id else "$id:$season:$episode"
+}
 
 @Immutable
 data class MetaLink(

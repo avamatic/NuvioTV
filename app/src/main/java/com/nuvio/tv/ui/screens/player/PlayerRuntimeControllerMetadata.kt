@@ -66,6 +66,11 @@ internal fun PlayerRuntimeController.applyMetaDetails(meta: Meta) {
         contentLanguage = meta.resolveContentLanguage()
     }
     val description = resolveDescription(meta)
+    if (currentVideoTrackingIdentity() != null) {
+        // The identity only becomes known once the addon meta is loaded.
+        fetchSkipIntervals(contentId, currentSeason, currentEpisode)
+        if (!hasRequestedScrobbleStartForCurrentItem) currentScrobbleItem = buildScrobbleItem()
+    }
 
     recomputeNextEpisode(resetVisibility = false)
     _uiState.update { state ->
