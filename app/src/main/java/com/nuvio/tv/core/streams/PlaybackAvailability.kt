@@ -38,7 +38,7 @@ internal data class PlaybackAvailability(
         }
         // An uncached synthetic video (e.g. resuming after a restart) may carry an identity the
         // streams screen resolves; let it through rather than reporting playback unavailable.
-        if (meta == null && contentId != videoId && !videoId.startsWith("tt") &&
+        if (meta == null && video?.id != videoId && contentId != videoId && !videoId.startsWith("tt") &&
             (addons.any { addon -> addon.enabled && addon.resources.any { it.name == "stream" } } || scrapers.any { it.enabled })
         ) return true
         return video?.takeIf { it.id == videoId }?.streams?.isNotEmpty() == true ||
