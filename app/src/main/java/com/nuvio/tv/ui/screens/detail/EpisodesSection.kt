@@ -115,7 +115,9 @@ fun SeasonTabs(
     selectedTabFocusRequester: FocusRequester,
     upFocusRequester: FocusRequester? = null,
     downFocusRequester: FocusRequester? = null,
-    isFocusEnabled: Boolean = true
+    isFocusEnabled: Boolean = true,
+    /** Tab label override, e.g. for playlist sections; defaults to "Season N" / "Specials". */
+    seasonLabel: (@Composable (Int) -> String)? = null
 ) {
     // Move season 0 (specials) to the end
     val sortedSeasons = remember(seasons) {
@@ -247,7 +249,8 @@ fun SeasonTabs(
                 scale = tabScale
             ) {
                 Text(
-                    text = if (season == 0) stringResource(R.string.episodes_specials) else stringResource(R.string.episodes_season, season),
+                    text = seasonLabel?.invoke(season)
+                        ?: if (season == 0) stringResource(R.string.episodes_specials) else stringResource(R.string.episodes_season, season),
                     style = tabTextStyle,
                     color = when {
                         isFocused -> NuvioTheme.colors.OnSecondary
@@ -293,7 +296,9 @@ fun EpisodesRow(
     onRestoreFocusHandled: () -> Unit = {},
     onEpisodeFocused: (episodeId: String) -> Unit = {},
     scrollToEpisodeId: String? = null,
-    onScrollToEpisodeHandled: () -> Unit = {}
+    onScrollToEpisodeHandled: () -> Unit = {},
+    /** Badge text override per card, e.g. "Show · S1E3" for playlist entries; null keeps "Episode N". */
+    episodeBadgeLabel: (Video) -> String? = { null }
 ) {
     val dedupedEpisodes = remember(episodes) { episodes.distinctBy { it.id } }
     val restoreTargetRequester = restoreEpisodeId?.let { episodeFocusRequesters[it] }
@@ -397,6 +402,7 @@ fun EpisodesRow(
             }
             EpisodeCard(
                 episode = episode,
+                badgeLabel = remember(episode, episodeBadgeLabel) { episodeBadgeLabel(episode) },
                 watchProgress = progress,
                 imdbRating = imdbRating,
                 isMarkedWatched = isMarkedWatched,
@@ -490,6 +496,7 @@ fun EpisodesRow(
 @Composable
 private fun EpisodeCard(
     episode: Video,
+    badgeLabel: String? = null,
     watchProgress: com.nuvio.tv.domain.model.WatchProgress? = null,
     imdbRating: Double? = null,
     isMarkedWatched: Boolean = false,
@@ -661,9 +668,11 @@ private fun EpisodeCard(
     }
     val strEpisode = stringResource(R.string.episodes_episode)
     val strUnavailable = stringResource(R.string.episodes_unavailable)
-    val episodeCode = remember(episode.episode, strEpisode) {
-        val prefix = strEpisode.uppercase(Locale.getDefault())
-        episode.episode?.let { number -> "$prefix $number" } ?: prefix
+    val episodeCode = remember(episode.episode, strEpisode, badgeLabel) {
+        badgeLabel?.uppercase(Locale.getDefault()) ?: run {
+            val prefix = strEpisode.uppercase(Locale.getDefault())
+            episode.episode?.let { number -> "$prefix $number" } ?: prefix
+        }
     }
 
     val primaryColor = NuvioTheme.colors.Primary

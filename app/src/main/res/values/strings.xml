@@ -3225,14 +3225,16 @@
     <string name="playlists_sources_stale">Showing the last saved copy</string>
     <string name="playlists_sources_needs_update">Needs a newer app version</string>
     <string name="playlists_entries_count">%1$d entries</string>
-    <string name="playlist_action_continue">Continue</string>
     <string name="playlist_action_start_over">Start from beginning</string>
-    <string name="playlist_counts">%1$d entries · %2$d movies · %3$d episodes</string>
+    <string name="playlist_action_resume">Resume %1$s</string>
+    <string name="playlist_action_play">Play %1$s</string>
+    <string name="playlist_section_part">Part %1$d</string>
+    <string name="playlist_count_movies">%1$d movies</string>
+    <string name="playlist_count_episodes">%1$d episodes</string>
+    <string name="playlist_skipped">%1$d unavailable</string>
+    <string name="playlist_needs_update">This playlist needs a newer version of the app.</string>
     <string name="playlist_progress">%1$d of %2$d watched</string>
     <string name="playlist_entry_movie">Movie</string>
-    <string name="playlist_entry_season_episode">S%1$d E%2$d</string>
-    <string name="playlist_entry_watched">Watched</string>
-    <string name="playlist_loading">Loading playlist…</string>
     <string name="playlist_load_failed">Could not load this playlist. Check the source in Settings and your connection.</string>
     <string name="playlist_empty">This playlist has no playable entries.</string>
 

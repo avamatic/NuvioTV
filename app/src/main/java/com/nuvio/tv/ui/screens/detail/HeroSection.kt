@@ -341,7 +341,7 @@ fun HeroContentSection(
 
 @OptIn(ExperimentalTvMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
-private fun PlayButton(
+internal fun PlayButton(
     text: String?,
     enabled: Boolean = true,
     onClick: () -> Unit,
@@ -500,7 +500,7 @@ private fun ActionIconButtonPainter(
 
 @OptIn(ExperimentalTvMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
-private fun ActionIconButton(
+internal fun ActionIconButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     painter: Painter? = null,
     contentDescription: String,
