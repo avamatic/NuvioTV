@@ -312,10 +312,15 @@ private fun entryBadge(entry: PlaylistEntry, movieLabel: String): String = when 
     else -> entry.type
 }
 
-/** "S1E3 · Fight or Flight" for episodes, the title otherwise. */
+/** "Star Trek: Enterprise · Fight or Flight" for episodes, the title otherwise. */
 private fun entryShortLabel(entry: PlaylistEntry): String =
     if (entry.isEpisode) {
-        listOfNotNull("S${entry.season}E${entry.episode}", entry.title).joinToString(" · ")
+        val show = entry.show?.takeIf { it.isNotBlank() }
+        val title = entry.title?.takeIf { it.isNotBlank() }
+        listOf(
+            show ?: entry.id,
+            title ?: "S${entry.season}E${entry.episode}"
+        ).distinct().joinToString(" · ")
     } else {
         entry.title ?: entry.show ?: entry.id
     }
