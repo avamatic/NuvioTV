@@ -721,7 +721,6 @@ fun SettingsScreen(
                                 onNavigateToManageProfiles = onNavigateToManageProfiles,
                                 onNavigateToAddons = onNavigateToAddons,
                                 onNavigateToPlugins = onNavigateToPlugins,
-                        onNavigateToPlaylists = onNavigateToPlaylists,
                                 onNavigateToPlaylists = onNavigateToPlaylists,
                                 onNavigateToAuthQrSignIn = onNavigateToAuthQrSignIn,
                                 onNavigateToSupportersContributors = onNavigateToSupportersContributors,
