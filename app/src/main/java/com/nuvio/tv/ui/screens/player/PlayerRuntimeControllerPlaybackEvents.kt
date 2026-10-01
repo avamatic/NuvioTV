@@ -1569,6 +1569,9 @@ fun PlayerRuntimeController.onEvent(event: PlayerEvent) {
         is PlayerEvent.OnEpisodeSelected -> {
             loadStreamsForEpisode(event.video)
         }
+        is PlayerEvent.OnPlaylistEntrySelected -> {
+            selectPlaylistEntry(event.entry)
+        }
         PlayerEvent.OnReloadEpisodeStreams -> {
             reloadEpisodeStreams()
         }

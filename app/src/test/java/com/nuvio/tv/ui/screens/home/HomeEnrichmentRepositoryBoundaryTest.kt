@@ -185,6 +185,9 @@ class HomeEnrichmentRepositoryBoundaryTest {
             metaRepository = metaRepository,
             collectionsDataStore = mockk(relaxed = true),
             playlistRepository = mockk(relaxed = true),
+            playlistPlaybackSession = mockk(relaxed = true) {
+                every { places } returns kotlinx.coroutines.flow.MutableStateFlow(emptyList())
+            },
             layoutPreferenceDataStore = mockk(relaxed = true),
             playerSettingsDataStore = mockk(relaxed = true),
             tmdbSettingsDataStore = mockk(relaxed = true),

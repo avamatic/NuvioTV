@@ -186,6 +186,12 @@ data class PlayerUiState(
     val playlistNext: com.nuvio.tv.core.playlist.PlaylistEntry? = null,
     /** Set when the player should hand playback over to [playlistNext]. */
     val playlistHandoffRequested: Boolean = false,
+    /** Where the current title sits in the playlist it is played from; the episodes panel lists that playlist. */
+    val playlistPosition: com.nuvio.tv.core.playlist.PlaylistPlaybackSession.Position? = null,
+    /** Watched entries of [playlistPosition]'s playlist, by [com.nuvio.tv.core.playlist.PlaylistEntry.watchedKey]. */
+    val playlistWatchedKeys: Set<String> = emptySet(),
+    /** Entry picked in the episodes panel that plays a different title; the player hands over to it. */
+    val playlistJumpTo: com.nuvio.tv.core.playlist.PlaylistEntry? = null,
     val streamAutoPlayMode: StreamAutoPlayMode = StreamAutoPlayMode.MANUAL,
     val streamAutoPlayNextEpisodeEnabled: Boolean = false,
     val streamAutoPlayPreferBingeGroupForNextEpisode: Boolean = false,
@@ -312,6 +318,7 @@ sealed class PlayerEvent {
     data object OnBackFromEpisodeStreams : PlayerEvent()
     data class OnEpisodeSeasonSelected(val season: Int) : PlayerEvent()
     data class OnEpisodeSelected(val video: Video) : PlayerEvent()
+    data class OnPlaylistEntrySelected(val entry: com.nuvio.tv.core.playlist.PlaylistEntry) : PlayerEvent()
     data object OnReloadEpisodeStreams : PlayerEvent()
     data class OnEpisodeAddonFilterSelected(val addonName: String?) : PlayerEvent()
     data class OnEpisodeStreamSelected(val stream: Stream) : PlayerEvent()

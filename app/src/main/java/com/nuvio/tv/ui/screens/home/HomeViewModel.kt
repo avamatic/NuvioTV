@@ -51,6 +51,8 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import java.util.Collections
@@ -69,6 +71,7 @@ class HomeViewModel @Inject constructor(
     internal val metaRepository: MetaRepository,
     internal val collectionsDataStore: CollectionsDataStore,
     internal val playlistRepository: com.nuvio.tv.core.playlist.PlaylistRepository,
+    internal val playlistPlaybackSession: com.nuvio.tv.core.playlist.PlaylistPlaybackSession,
     internal val layoutPreferenceDataStore: LayoutPreferenceDataStore,
     internal val playerSettingsDataStore: PlayerSettingsDataStore,
     internal val tmdbSettingsDataStore: TmdbSettingsDataStore,
@@ -112,7 +115,13 @@ class HomeViewModel @Inject constructor(
     }
 
     internal val _uiState = MutableStateFlow(HomeUiState())
-    val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+
+    /** Playlist additions to Continue Watching, laid over [_uiState]. */
+    internal val playlistContinueWatching = MutableStateFlow(PlaylistContinueWatching.EMPTY)
+
+    val uiState: StateFlow<HomeUiState> =
+        combine(_uiState, playlistContinueWatching) { state, playlists -> playlists.applyTo(state) }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, _uiState.value)
 
     internal val _modernHomePresentation = MutableStateFlow(ModernHomePresentationState())
     val modernHomePresentation: StateFlow<ModernHomePresentationState> = _modernHomePresentation.asStateFlow()
@@ -323,6 +332,7 @@ class HomeViewModel @Inject constructor(
         get() = trailerPreviewAudioUrlsState
 
     init {
+        observePlaylistContinueWatching()
         // Accumulates individual watched status changes and flushes them as a single
         // update after 150ms of inactivity, preventing N separate recompositions.
         viewModelScope.launch {
@@ -639,12 +649,20 @@ class HomeViewModel @Inject constructor(
         when (event) {
             is HomeEvent.OnItemClick -> navigateToDetail(event.itemId, event.itemType)
             is HomeEvent.OnLoadMoreCatalog -> loadMoreCatalogItems(event.catalogId, event.addonId, event.type)
-            is HomeEvent.OnRemoveContinueWatching -> removeContinueWatching(
-                contentId = event.contentId,
-                season = event.season,
-                episode = event.episode,
-                isNextUp = event.isNextUp
-            )
+            is HomeEvent.OnRemoveContinueWatching -> {
+                val playlist = playlistContinueWatching.value
+                    .playlistFor(event.contentId, event.season, event.episode, event.isNextUp)
+                if (playlist != null) {
+                    playlistPlaybackSession.forget(playlist)
+                } else {
+                    removeContinueWatching(
+                        contentId = event.contentId,
+                        season = event.season,
+                        episode = event.episode,
+                        isNextUp = event.isNextUp
+                    )
+                }
+            }
             HomeEvent.OnRetry -> viewModelScope.launch { loadAllCatalogs(addonsCache, forceReload = true) }
         }
     }

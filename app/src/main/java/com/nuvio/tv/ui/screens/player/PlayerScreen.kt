@@ -394,6 +394,13 @@ fun PlayerScreen(
         if (uiState.playlistHandoffRequested) playlistNextHandoff?.invoke()
     }
 
+    LaunchedEffect(uiState.playlistJumpTo) {
+        val entry = uiState.playlistJumpTo ?: return@LaunchedEffect
+        val cb = currentOnPlaylistNext ?: return@LaunchedEffect
+        viewModel.stopAndRelease()
+        cb(entry)
+    }
+
     // Handle lifecycle events
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -1487,7 +1494,10 @@ fun PlayerScreen(
                     onAddonFilterSelected = { viewModel.onEvent(PlayerEvent.OnEpisodeAddonFilterSelected(it)) },
                     onEpisodeSelected = { viewModel.onEvent(PlayerEvent.OnEpisodeSelected(it)) },
                     onStreamSelected = { viewModel.onEvent(PlayerEvent.OnEpisodeStreamSelected(it)) },
-                    modifier = Modifier.align(Alignment.CenterEnd)
+                    modifier = Modifier.align(Alignment.CenterEnd),
+                    onPlaylistEntrySelected = onPlaylistNext?.let {
+                        { entry -> viewModel.onEvent(PlayerEvent.OnPlaylistEntrySelected(entry)) }
+                    }
                 )
             }
         }
@@ -2255,7 +2265,8 @@ private fun PlayerControlsOverlay(
                     horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.xs),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val hasEpisodeContext = uiState.currentSeason != null && uiState.currentEpisode != null
+                    val hasEpisodeContext = (uiState.currentSeason != null && uiState.currentEpisode != null) ||
+                        uiState.playlistPosition != null
                     val hasSubtitleControl = uiState.subtitleTracks.isNotEmpty() || uiState.addonSubtitles.isNotEmpty()
                     val hasAudioControl = uiState.audioTracks.isNotEmpty()
                     val showNextEpisodeButton = uiState.nextEpisode?.hasAired == true &&

@@ -313,7 +313,7 @@ private fun PlayerRuntimeController.recomputePlaylistNext(resetVisibility: Boole
     val next = position?.next
     val sameShow = next != null && next.isEpisode && isEpisode && next.id == contentId
     playlistNextEntry = next.takeUnless { sameShow }
-    _uiState.update { it.copy(playlistNext = playlistNextEntry) }
+    _uiState.update { it.copy(playlistNext = playlistNextEntry, playlistPosition = position) }
     if (position == null) return false
     if (next == null) {
         nextEpisodeVideo = null

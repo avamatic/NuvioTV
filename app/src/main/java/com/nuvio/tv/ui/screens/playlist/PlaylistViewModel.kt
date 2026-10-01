@@ -10,7 +10,7 @@ import com.nuvio.tv.core.playlist.PlaylistPlaybackSession
 import com.nuvio.tv.core.playlist.PlaylistRef
 import com.nuvio.tv.core.playlist.PlaylistRepository
 import com.nuvio.tv.core.playlist.PlaylistSelection
-import com.nuvio.tv.core.playlist.playlistWatchedKey
+import com.nuvio.tv.core.playlist.PlaylistWatchState
 import com.nuvio.tv.domain.model.Video
 import com.nuvio.tv.domain.model.WatchProgress
 import com.nuvio.tv.domain.repository.WatchProgressRepository
@@ -20,7 +20,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -82,34 +81,21 @@ class PlaylistViewModel @Inject constructor(
     /** Section the user picked; null follows the entry "Continue" would play. */
     private val pickedSection = MutableStateFlow<Int?>(null)
 
-    /** Latest progress per real title, keyed like [PlaylistEntry.watchedKey]. */
-    private val progressByKey = watchProgressRepository.allProgress
-        .combine(watchProgressRepository.watchedItems) { progress, items -> progress to items }
-        .distinctUntilChanged()
+    private val watchState = watchProgressRepository.allProgress
+        .combine(watchProgressRepository.watchedItems, PlaylistWatchState::from)
 
     val uiState: StateFlow<PlaylistUiState> =
-        combine(load, progressByKey, pickedSection) { state, (allProgress, watchedItems), picked ->
+        combine(load, watchState, pickedSection) { state, watch, picked ->
             val playlist = state.playlist
                 ?: return@combine PlaylistUiState(isLoading = state.isLoading, failed = !state.isLoading)
-            buildState(playlist, allProgress, watchedItems.map { playlistWatchedKey(it.contentId, it.season, it.episode) }, picked)
+            buildState(playlist, watch, picked)
         }
             .flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PlaylistUiState())
 
-    private fun buildState(
-        playlist: Playlist,
-        allProgress: List<WatchProgress>,
-        watchedItemKeys: List<String>,
-        picked: Int?
-    ): PlaylistUiState {
-        val latest = HashMap<String, WatchProgress>(allProgress.size)
-        allProgress.forEach { progress ->
-            val key = playlistWatchedKey(progress.contentId, progress.season, progress.episode)
-            val existing = latest[key]
-            if (existing == null || progress.lastWatched > existing.lastWatched) latest[key] = progress
-        }
-        val watchedKeys = HashSet<String>(watchedItemKeys)
-        latest.forEach { (key, progress) -> if (progress.isCompleted()) watchedKeys.add(key) }
+    private fun buildState(playlist: Playlist, watch: PlaylistWatchState, picked: Int?): PlaylistUiState {
+        val latest = watch.latest
+        val watchedKeys = watch.watchedKeys
 
         val entriesByVideoId = HashMap<String, PlaylistEntry>()
         val coordinates = HashMap<String, Pair<Int, Int>>()

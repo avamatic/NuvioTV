@@ -59,6 +59,7 @@ import androidx.tv.material3.Border
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Card
 import androidx.tv.material3.CardDefaults
+import com.nuvio.tv.core.playlist.PlaylistEntry
 import com.nuvio.tv.domain.model.Stream
 import com.nuvio.tv.domain.model.Video
 import com.nuvio.tv.ui.theme.NuvioTheme
@@ -95,8 +96,10 @@ internal fun EpisodesSidePanel(
     onAddonFilterSelected: (String?) -> Unit,
     onEpisodeSelected: (Video) -> Unit,
     onStreamSelected: (Stream) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onPlaylistEntrySelected: ((PlaylistEntry) -> Unit)? = null
 ) {
+    val playlistPosition = uiState.playlistPosition?.takeIf { onPlaylistEntrySelected != null }
     LaunchedEffect(
         uiState.showEpisodeStreams
     ) {
@@ -124,7 +127,14 @@ internal fun EpisodesSidePanel(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (uiState.showEpisodeStreams) stringResource(R.string.episodes_panel_streams_title) else stringResource(R.string.episodes_panel_title),
+                        text = when {
+                            uiState.showEpisodeStreams -> stringResource(R.string.episodes_panel_streams_title)
+                            playlistPosition != null -> playlistPosition.playlist.name
+                            else -> stringResource(R.string.episodes_panel_title)
+                        },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
                         style = MaterialTheme.typography.headlineSmall,
                         color = NuvioTheme.colors.TextPrimary
                     )
@@ -145,6 +155,14 @@ internal fun EpisodesSidePanel(
                         onReload = onReloadEpisodeStreams,
                         onAddonFilterSelected = onAddonFilterSelected,
                         onStreamSelected = onStreamSelected
+                    )
+                } else if (playlistPosition != null && onPlaylistEntrySelected != null) {
+                    PlaylistEntriesListView(
+                        position = playlistPosition,
+                        watchedKeys = uiState.playlistWatchedKeys,
+                        blurUnwatched = uiState.blurUnwatchedEpisodes,
+                        episodesFocusRequester = episodesFocusRequester,
+                        onEntrySelected = onPlaylistEntrySelected
                     )
                 } else {
                     EpisodesListView(
@@ -624,11 +642,12 @@ private fun EpisodesListView(
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-private fun EpisodesSeasonTabs(
+internal fun EpisodesSeasonTabs(
     seasons: List<Int>,
     selectedSeason: Int?,
     selectedTabFocusRequester: FocusRequester,
-    onSeasonSelected: (Int) -> Unit
+    onSeasonSelected: (Int) -> Unit,
+    seasonLabel: (@Composable (Int) -> String)? = null
 ) {
     val seasonTabsListState = rememberLazyListState()
 
@@ -674,7 +693,8 @@ private fun EpisodesSeasonTabs(
                 scale = CardDefaults.scale(focusedScale = 1.0f)
             ) {
                 Text(
-                    text = if (season == 0) stringResource(R.string.episodes_specials) else stringResource(R.string.episodes_season, season),
+                    text = seasonLabel?.invoke(season)
+                        ?: if (season == 0) stringResource(R.string.episodes_specials) else stringResource(R.string.episodes_season, season),
                     style = MaterialTheme.typography.labelLarge,
                     color = when {
                         isSelected -> Color.Black
@@ -689,7 +709,7 @@ private fun EpisodesSeasonTabs(
 }
 
 @Composable
-private fun EpisodeItem(
+internal fun EpisodeItem(
     episode: Video,
     isCurrent: Boolean,
     isWatched: Boolean = false,
@@ -699,6 +719,10 @@ private fun EpisodeItem(
     availableSeasons: List<Int> = emptyList(),
     currentSeason: Int? = null,
     onSeasonNavigate: (Int) -> Unit = {},
+    /** Replaces the season/episode code on the thumbnail. */
+    badgeLabel: String? = null,
+    /** Shown under the title in place of the release date. */
+    subtitle: String? = null,
     onClick: () -> Unit
 ) {
     val shouldBlur = blurUnwatched && !isWatched
@@ -708,7 +732,7 @@ private fun EpisodeItem(
     val formattedDate = remember(episode.released) {
         episode.released?.let { formatReleaseDate(it) }?.takeIf { it.isNotBlank() }
     }
-    val episodeCode = remember(episode.season, episode.episode) {
+    val episodeCode = badgeLabel ?: remember(episode.season, episode.episode) {
         val s = episode.season
         val e = episode.episode
         if (s != null && e != null) {
@@ -872,9 +896,9 @@ private fun EpisodeItem(
                     overflow = TextOverflow.Ellipsis
                 )
 
-                if (formattedDate != null) {
+                (subtitle ?: formattedDate)?.let { secondLine ->
                     Text(
-                        text = formattedDate,
+                        text = secondLine,
                         style = MaterialTheme.typography.bodySmall,
                         color = NuvioTheme.extendedColors.textTertiary
                     )

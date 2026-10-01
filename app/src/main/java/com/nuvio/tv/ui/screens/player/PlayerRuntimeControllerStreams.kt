@@ -121,6 +121,11 @@ internal fun PlayerRuntimeController.showEpisodesPanel() {
         )
     }
 
+    if (_uiState.value.playlistPosition != null) {
+        loadPlaylistWatchedKeys()
+        return
+    }
+
     val desiredSeason = currentSeason ?: _uiState.value.episodesSelectedSeason
     if (_uiState.value.episodesAll.isNotEmpty() && desiredSeason != null) {
         selectEpisodesSeason(desiredSeason)

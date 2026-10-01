@@ -56,7 +56,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Test and build fullRelease APK
-        run: ./gradlew :app:testFullReleaseUnitTest --tests 'com.nuvio.tv.data.mapper.*' --tests 'com.nuvio.tv.core.streams.*' --tests 'com.nuvio.tv.core.playlist.*' :app:assembleFullRelease --stacktrace
+        run: ./gradlew :app:testFullReleaseUnitTest --tests 'com.nuvio.tv.data.mapper.*' --tests 'com.nuvio.tv.core.streams.*' --tests 'com.nuvio.tv.core.playlist.*' --tests 'com.nuvio.tv.ui.screens.home.PlaylistContinueWatchingTest' :app:assembleFullRelease --stacktrace
 
       - name: Upload APKs
         uses: actions/upload-artifact@v6
