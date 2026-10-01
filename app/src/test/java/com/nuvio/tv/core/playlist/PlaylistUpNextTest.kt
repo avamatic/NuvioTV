@@ -11,7 +11,7 @@ class PlaylistUpNextTest {
     private val entries = listOf(
         PlaylistEntry("tng-1-1", "series", "tng", 1, 1),
         PlaylistEntry("ds9-1-1", "series", "ds9", 1, 1),
-        PlaylistEntry("generations", "movie", "gen"),
+        PlaylistEntry("generations", "movie", "gen", null, null),
         PlaylistEntry("tng-1-2", "series", "tng", 1, 2)
     )
     private val playlist = Playlist(
