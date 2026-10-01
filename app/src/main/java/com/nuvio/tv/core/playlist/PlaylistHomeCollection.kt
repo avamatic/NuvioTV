@@ -22,7 +22,7 @@ fun List<PlaylistSummary>.toHomeCollection(title: String): Collection? {
             CollectionFolder(
                 id = summary.ref.key,
                 title = summary.name,
-                coverImageUrl = summary.background ?: summary.poster,
+                coverImageUrl = summary.poster ?: summary.background,
                 tileShape = PosterShape.LANDSCAPE
             )
         }
