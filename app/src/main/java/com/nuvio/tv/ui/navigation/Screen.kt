@@ -177,11 +177,13 @@ sealed class Screen(val route: String) {
         }
     }
 
-    data object Playlist : Screen("playlist/{playlistId}") {
-        fun createRoute(playlistId: String): String {
-            return "playlist/${URLEncoder.encode(playlistId, "UTF-8").replace("+", "%20")}"
+    /** [playlistKey] is a [com.nuvio.tv.core.playlist.PlaylistRef.key]. */
+    data object Playlist : Screen("playlist/{playlistKey}") {
+        fun createRoute(playlistKey: String): String {
+            return "playlist/${URLEncoder.encode(playlistKey, "UTF-8").replace("+", "%20")}"
         }
     }
+    data object PlaylistSources : Screen("playlist_sources")
 
     data object FolderDetail : Screen("folder_detail/{collectionId}/{folderId}") {
         private fun encode(value: String): String =

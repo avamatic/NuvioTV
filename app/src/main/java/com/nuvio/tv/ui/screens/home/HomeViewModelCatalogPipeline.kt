@@ -50,7 +50,7 @@ internal fun HomeViewModel.observeCollectionsPipeline() {
     viewModelScope.launch {
         // The playlists row is a synthetic collection (see PlaylistHomeCollection); it is empty
         // until the feed answers so a slow or unreachable feed never delays the other rows.
-        val playlistsRow = playlistRepository.observeSummaries()
+        val playlistsRow = playlistRepository.observeEnabledSummaries()
             .map { it.toHomeCollection(appContext.getString(R.string.playlists_home_title)) }
             .onStart { emit(null) }
             .distinctUntilChanged()

@@ -3210,11 +3210,21 @@
     <string name="playlists_home_title">Playlists</string>
     <string name="playlists_settings_title">Playlists</string>
     <string name="playlists_settings_subtitle">Curated watch orders across shows and movies</string>
-    <string name="playlists_feed_url_title">Playlist feed URL</string>
-    <string name="playlists_feed_url_subtitle">Address of the playlists.json feed. Leave empty to hide playlists.</string>
-    <string name="playlists_feed_url_disabled">Off (no feed)</string>
-    <string name="playlists_feed_url_dialog_placeholder">https://example.com/playlists.json</string>
-    <string name="playlists_feed_url_default">Default</string>
+    <string name="playlists_sources_add">Add playlist source</string>
+    <string name="playlists_sources_add_hint">A source URL points to a playlist index, such as https://example.com/playlists/index.json</string>
+    <string name="playlists_sources_url_placeholder">Source URL</string>
+    <string name="playlists_sources_add_btn">Add</string>
+    <string name="playlists_sources_section">Sources (%1$d)</string>
+    <string name="playlists_sources_empty">No playlist sources yet. Add a source URL to see its playlists on Home.</string>
+    <string name="playlists_sources_count">%1$d playlists</string>
+    <string name="playlists_sources_enabled_count">%1$d of %2$d shown</string>
+    <string name="playlists_sources_added">Added %1$s</string>
+    <string name="playlists_sources_duplicate">That source is already added</string>
+    <string name="playlists_sources_error_unreachable">Could not reach this source</string>
+    <string name="playlists_sources_error_not_index">This URL is not a playlist index</string>
+    <string name="playlists_sources_stale">Showing the last saved copy</string>
+    <string name="playlists_sources_needs_update">Needs a newer app version</string>
+    <string name="playlists_entries_count">%1$d entries</string>
     <string name="playlist_action_continue">Continue</string>
     <string name="playlist_action_start_over">Start from beginning</string>
     <string name="playlist_counts">%1$d entries · %2$d movies · %3$d episodes</string>
@@ -3223,7 +3233,7 @@
     <string name="playlist_entry_season_episode">S%1$d E%2$d</string>
     <string name="playlist_entry_watched">Watched</string>
     <string name="playlist_loading">Loading playlist…</string>
-    <string name="playlist_load_failed">Could not load this playlist. Check the feed URL and your connection.</string>
+    <string name="playlist_load_failed">Could not load this playlist. Check the source in Settings and your connection.</string>
     <string name="playlist_empty">This playlist has no playable entries.</string>
 
 </resources>

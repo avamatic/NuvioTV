@@ -303,14 +303,15 @@ internal fun PlayerRuntimeController.recomputeNextEpisode(resetVisibility: Boole
  * next episode. Returns false when the current title is not playing from a playlist.
  */
 private fun PlayerRuntimeController.recomputePlaylistNext(resetVisibility: Boolean): Boolean {
-    val isEpisode = !contentType.equals(PLAYLIST_ENTRY_TYPE_MOVIE, ignoreCase = true)
+    val isEpisode = !contentType.equals(PLAYLIST_ENTRY_TYPE_MOVIE, ignoreCase = true) &&
+        currentSeason != null && currentEpisode != null
     val position = playlistPlaybackSession.locate(
         contentId = contentId,
         season = currentSeason.takeIf { isEpisode },
         episode = currentEpisode.takeIf { isEpisode }
     )
     val next = position?.next
-    val sameShow = next != null && !next.isMovie && isEpisode && next.id == contentId
+    val sameShow = next != null && next.isEpisode && isEpisode && next.id == contentId
     playlistNextEntry = next.takeUnless { sameShow }
     _uiState.update { it.copy(playlistNext = playlistNextEntry) }
     if (position == null) return false
@@ -327,7 +328,7 @@ private fun PlayerRuntimeController.recomputePlaylistNext(resetVisibility: Boole
             id = next.videoId,
             title = next.title ?: next.show ?: next.id,
             released = null,
-            thumbnail = next.image,
+            thumbnail = next.thumbnail,
             season = next.season,
             episode = next.episode,
             overview = null
@@ -338,7 +339,7 @@ private fun PlayerRuntimeController.recomputePlaylistNext(resetVisibility: Boole
         season = next.season ?: 0,
         episode = next.episode ?: 0,
         title = if (sameShow) nextVideo.title else playlistEntryLabel(next),
-        thumbnail = nextVideo.thumbnail ?: next.image,
+        thumbnail = nextVideo.thumbnail ?: next.thumbnail,
         overview = nextVideo.overview,
         released = nextVideo.released,
         hasAired = true,
@@ -352,7 +353,7 @@ private fun PlayerRuntimeController.recomputePlaylistNext(resetVisibility: Boole
 
 /** "Star Trek: Short Treks · S1E3 · The Brightest Star", or the title alone for a movie. */
 internal fun playlistEntryLabel(entry: PlaylistEntry): String {
-    val code = if (!entry.isMovie && entry.season != null && entry.episode != null) {
+    val code = if (entry.isEpisode) {
         "S${entry.season}E${entry.episode}"
     } else {
         null

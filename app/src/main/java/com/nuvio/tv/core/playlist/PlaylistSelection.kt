@@ -29,7 +29,7 @@ object PlaylistSelection {
         for (index in fromIndex.coerceAtLeast(0) until entries.size) {
             val entry = entries[index]
             if (entry.id != contentId) continue
-            if (entry.isMovie || (entry.season == season && entry.episode == episode)) return index
+            if (!entry.isEpisode || (entry.season == season && entry.episode == episode)) return index
         }
         return null
     }

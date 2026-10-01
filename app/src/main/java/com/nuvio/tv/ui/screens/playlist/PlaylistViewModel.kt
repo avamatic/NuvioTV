@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.nuvio.tv.core.playlist.Playlist
 import com.nuvio.tv.core.playlist.PlaylistEntry
 import com.nuvio.tv.core.playlist.PlaylistPlaybackSession
+import com.nuvio.tv.core.playlist.PlaylistRef
 import com.nuvio.tv.core.playlist.PlaylistRepository
 import com.nuvio.tv.core.playlist.PlaylistSelection
 import com.nuvio.tv.core.playlist.playlistWatchedKey
@@ -45,7 +46,7 @@ class PlaylistViewModel @Inject constructor(
     watchProgressRepository: WatchProgressRepository
 ) : ViewModel() {
 
-    private val playlistId: String = savedStateHandle.get<String>("playlistId").orEmpty()
+    private val playlistRef: PlaylistRef? = savedStateHandle.get<String>("playlistKey")?.let(PlaylistRef::fromKey)
 
     private data class Load(val isLoading: Boolean, val playlist: Playlist?)
 
@@ -79,7 +80,7 @@ class PlaylistViewModel @Inject constructor(
                     watchedKeys = watched,
                     watchedCount = PlaylistSelection.watchedCount(entries, watched),
                     movieCount = entries.count { it.isMovie },
-                    episodeCount = entries.count { !it.isMovie },
+                    episodeCount = entries.count { it.isEpisode },
                     continueIndex = target?.let { entries.indexOf(it) } ?: -1
                 )
             }
@@ -94,7 +95,11 @@ class PlaylistViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            playlistRepository.observePlaylist(playlistId)
+            val ref = playlistRef ?: run {
+                load.value = Load(isLoading = false, playlist = null)
+                return@launch
+            }
+            playlistRepository.observePlaylist(ref)
                 .collect { playlist -> load.value = Load(isLoading = true, playlist = playlist) }
             load.value = Load(isLoading = false, playlist = load.value.playlist)
         }

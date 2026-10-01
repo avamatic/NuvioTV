@@ -36,6 +36,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Explore
@@ -118,8 +119,7 @@ private enum class IntegrationSettingsSection {
     Debrid,
     Tmdb,
     MdbList,
-    AnimeSkip,
-    Playlists
+    AnimeSkip
 }
 
 internal enum class SettingsSectionDestination {
@@ -258,6 +258,7 @@ fun SettingsScreen(
     onNavigateToTracking: () -> Unit = {},
     onNavigateToAddons: () -> Unit = {},
     onNavigateToPlugins: () -> Unit = {},
+    onNavigateToPlaylists: () -> Unit = {},
     onNavigateToAuthQrSignIn: () -> Unit = {},
     onNavigateToManageProfiles: () -> Unit = {},
     onNavigateToSupportersContributors: () -> Unit = {},
@@ -720,6 +721,8 @@ fun SettingsScreen(
                                 onNavigateToManageProfiles = onNavigateToManageProfiles,
                                 onNavigateToAddons = onNavigateToAddons,
                                 onNavigateToPlugins = onNavigateToPlugins,
+                        onNavigateToPlaylists = onNavigateToPlaylists,
+                                onNavigateToPlaylists = onNavigateToPlaylists,
                                 onNavigateToAuthQrSignIn = onNavigateToAuthQrSignIn,
                                 onNavigateToSupportersContributors = onNavigateToSupportersContributors,
                                 onNavigateToLicensesAttributions = onNavigateToLicensesAttributions
@@ -895,6 +898,7 @@ fun SettingsScreen(
                         onNavigateToManageProfiles = onNavigateToManageProfiles,
                         onNavigateToAddons = onNavigateToAddons,
                         onNavigateToPlugins = onNavigateToPlugins,
+                        onNavigateToPlaylists = onNavigateToPlaylists,
                         onNavigateToAuthQrSignIn = onNavigateToAuthQrSignIn,
                         onNavigateToSupportersContributors = onNavigateToSupportersContributors,
                         onNavigateToLicensesAttributions = onNavigateToLicensesAttributions
@@ -923,6 +927,7 @@ private fun SettingsDetailPane(
     onNavigateToManageProfiles: () -> Unit,
     onNavigateToAddons: () -> Unit,
     onNavigateToPlugins: () -> Unit,
+    onNavigateToPlaylists: () -> Unit,
     onNavigateToAuthQrSignIn: () -> Unit,
     onNavigateToSupportersContributors: () -> Unit,
     onNavigateToLicensesAttributions: () -> Unit
@@ -1022,6 +1027,7 @@ private fun SettingsDetailPane(
         SettingsCategory.CONTENT_DISCOVERY -> ContentDiscoverySettingsContent(
             onNavigateToAddons = onNavigateToAddons,
             onNavigateToPlugins = onNavigateToPlugins,
+            onNavigateToPlaylists = onNavigateToPlaylists,
             showPlugins = AppFeaturePolicy.pluginsEnabled && !isEssentialMode,
             initialFocusRequester = if (allowDetailAutofocus) {
                 contentFocusRequesters[SettingsCategory.CONTENT_DISCOVERY]
@@ -1046,6 +1052,7 @@ private fun SettingsDetailPane(
 private fun ContentDiscoverySettingsContent(
     onNavigateToAddons: () -> Unit,
     onNavigateToPlugins: () -> Unit,
+    onNavigateToPlaylists: () -> Unit,
     showPlugins: Boolean,
     initialFocusRequester: FocusRequester?
 ) {
@@ -1077,6 +1084,12 @@ private fun ContentDiscoverySettingsContent(
                     leadingIcon = Icons.Default.Build
                 )
             }
+            SettingsActionRow(
+                title = stringResource(R.string.playlists_settings_title),
+                subtitle = stringResource(R.string.playlists_settings_subtitle),
+                onClick = onNavigateToPlaylists,
+                leadingIcon = Icons.AutoMirrored.Filled.PlaylistPlay
+            )
         }
     }
 }
@@ -1167,7 +1180,6 @@ private fun IntegrationSettingsContent(
         onSelectSection(IntegrationSettingsSection.Hub)
     }
     val hubEntryFocusRequester = initialFocusRequester ?: hubFocusRequester
-    val playlistsFocusRequester = remember { FocusRequester() }
 
     LaunchedEffect(selectedSection, autoFocusEnabled) {
         if (!autoFocusEnabled) return@LaunchedEffect
@@ -1177,7 +1189,6 @@ private fun IntegrationSettingsContent(
             IntegrationSettingsSection.Tmdb -> tmdbFocusRequester
             IntegrationSettingsSection.MdbList -> mdbListFocusRequester
             IntegrationSettingsSection.AnimeSkip -> animeSkipFocusRequester
-            IntegrationSettingsSection.Playlists -> playlistsFocusRequester
         }
         runCatching { requester.requestFocus() }
     }
@@ -1233,13 +1244,6 @@ private fun IntegrationSettingsContent(
                                     onClick = { onSelectSection(IntegrationSettingsSection.AnimeSkip) }
                                 )
                             }
-                            item(key = "integration_hub_playlists") {
-                                SettingsActionRow(
-                                    title = stringResource(R.string.playlists_settings_title),
-                                    subtitle = stringResource(R.string.playlists_settings_subtitle),
-                                    onClick = { onSelectSection(IntegrationSettingsSection.Playlists) }
-                                )
-                            }
                         }
                         SettingsVerticalScrollIndicators(state = integrationHubState)
                     }
@@ -1268,12 +1272,6 @@ private fun IntegrationSettingsContent(
         IntegrationSettingsSection.AnimeSkip -> {
             AnimeSkipSettingsContent(
                 initialFocusRequester = animeSkipFocusRequester
-            )
-        }
-
-        IntegrationSettingsSection.Playlists -> {
-            PlaylistSettingsContent(
-                initialFocusRequester = playlistsFocusRequester
             )
         }
     }

@@ -95,7 +95,7 @@ fun PlaylistScreen(
     val continueFocusRequester = remember { FocusRequester() }
 
     // Land on the entry "Continue" would open, and focus the Continue button.
-    LaunchedEffect(playlist.id) {
+    LaunchedEffect(playlist.ref) {
         val index = uiState.continueIndex
         if (index > 0) listState.scrollToItem(index)
         runCatching { continueFocusRequester.requestFocus() }
@@ -113,9 +113,10 @@ fun PlaylistScreen(
                 .fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md)
         ) {
-            if (!playlist.image.isNullOrBlank()) {
+            val heroImage = playlist.background ?: playlist.poster
+            if (!heroImage.isNullOrBlank()) {
                 AsyncImage(
-                    model = playlist.image,
+                    model = heroImage,
                     contentDescription = playlist.name,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -268,9 +269,9 @@ private fun PlaylistEntryRow(
                     .aspectRatio(16f / 9f)
                     .clip(RoundedCornerShape(6.dp))
             ) {
-                if (!entry.image.isNullOrBlank()) {
+                if (!entry.thumbnail.isNullOrBlank()) {
                     AsyncImage(
-                        model = entry.image,
+                        model = entry.thumbnail,
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
@@ -278,7 +279,7 @@ private fun PlaylistEntryRow(
                 }
             }
             Column(modifier = Modifier.weight(1f)) {
-                val label = if (entry.isMovie || entry.season == null || entry.episode == null) {
+                val label = if (!entry.isEpisode) {
                     stringResource(R.string.playlist_entry_movie)
                 } else {
                     val episodeLabel = stringResource(

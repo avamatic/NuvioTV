@@ -264,7 +264,7 @@ private fun PlaybackNavHost(
 
         composable(
             route = Screen.Playlist.route,
-            arguments = listOf(navArgument("playlistId") { type = NavType.StringType })
+            arguments = listOf(navArgument("playlistKey") { type = NavType.StringType })
         ) {
             com.nuvio.tv.ui.screens.playlist.PlaylistScreen(
                 onPlayEntry = { entry, playlistName ->
@@ -1229,6 +1229,7 @@ private fun PlaybackNavHost(
                 onNavigateToTracking = { navController.navigate(Screen.Tracking.route) },
                 onNavigateToAddons = { navController.navigate(Screen.AddonManager.route) },
                 onNavigateToPlugins = { navController.navigate(Screen.Plugins.route) },
+                onNavigateToPlaylists = { navController.navigate(Screen.PlaylistSources.route) },
                 onNavigateToAuthQrSignIn = { navController.navigate(Screen.AuthQrSignIn.route) },
                 onNavigateToManageProfiles = { navController.navigate(Screen.ManageProfiles.route) },
                 onNavigateToSupportersContributors = {
@@ -1350,6 +1351,12 @@ private fun PlaybackNavHost(
                     navController.navigate(Screen.Detail.createRoute(itemId, itemType, addonBaseUrl, heroBackdropUrl = heroBackdrop))
                 },
                 onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.PlaylistSources.route) {
+            com.nuvio.tv.ui.screens.playlist.PlaylistSourcesScreen(
+                onBackPress = { navController.popBackStack() }
             )
         }
 
@@ -1485,13 +1492,13 @@ private fun playlistEntryStreamRoute(
     profileId: Int? = null
 ): String = Screen.Stream.createRoute(
     videoId = entry.videoId,
-    contentType = if (entry.isMovie) "movie" else "series",
+    contentType = entry.type,
     title = entry.show ?: entry.title ?: fallbackTitle,
-    poster = entry.image,
-    backdrop = entry.image,
+    poster = entry.thumbnail,
+    backdrop = entry.thumbnail,
     season = entry.season,
     episode = entry.episode,
-    episodeName = if (entry.isMovie) null else entry.title,
+    episodeName = if (entry.isEpisode) entry.title else null,
     contentId = entry.id,
     contentName = entry.show ?: entry.title ?: fallbackTitle,
     profileId = profileId,

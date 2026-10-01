@@ -2,6 +2,7 @@ package com.nuvio.tv.ui.screens.addon
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.nuvio.tv.core.playlist.toHomeCollection
 import com.nuvio.tv.core.sync.HomeCatalogSettingsSyncService
 import com.nuvio.tv.core.sync.homeCatalogKey
 import com.nuvio.tv.core.sync.homeLegacyDisabledCatalogKey
@@ -27,7 +28,9 @@ class CatalogOrderViewModel @Inject constructor(
     private val addonRepository: AddonRepository,
     private val collectionsDataStore: CollectionsDataStore,
     private val layoutPreferenceDataStore: LayoutPreferenceDataStore,
-    private val homeCatalogSettingsSyncService: HomeCatalogSettingsSyncService
+    private val homeCatalogSettingsSyncService: HomeCatalogSettingsSyncService,
+    private val playlistRepository: com.nuvio.tv.core.playlist.PlaylistRepository,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CatalogOrderUiState())
@@ -160,7 +163,11 @@ class CatalogOrderViewModel @Inject constructor(
         viewModelScope.launch {
             combine(
                 addonRepository.getInstalledAddons(),
-                collectionsDataStore.collections,
+                // The Playlists row is a synthetic collection; list it so it can be moved and hidden.
+                combine(collectionsDataStore.collections, playlistRepository.observeEnabledSummaries()) { collections, playlists ->
+                    val playlistsRow = playlists.toHomeCollection(appContext.getString(com.nuvio.tv.R.string.playlists_home_title))
+                    if (playlistsRow == null) collections else collections + playlistsRow
+                },
                 layoutPreferenceDataStore.homeCatalogOrderKeys,
                 layoutPreferenceDataStore.disabledHomeCatalogKeys,
                 layoutPreferenceDataStore.customCatalogTitles,

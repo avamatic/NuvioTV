@@ -12,9 +12,6 @@ class PlaylistSelectionTest {
         id = show,
         season = season,
         episode = episode,
-        show = null,
-        title = null,
-        image = null
     )
 
     private fun movie(id: String) = PlaylistEntry(
@@ -23,9 +20,6 @@ class PlaylistSelectionTest {
         id = id,
         season = null,
         episode = null,
-        show = null,
-        title = null,
-        image = null
     )
 
     private val entries = listOf(
