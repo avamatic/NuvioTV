@@ -3,11 +3,37 @@ package com.nuvio.tv.core.playlist
 /** Which entry "Continue" opens. */
 object PlaylistSelection {
     /**
-     * The first entry that is not watched, or the first entry when everything is watched (so a
-     * finished playlist restarts). Null only for an empty playlist.
+     * Picks up where the user last was, as a show does: the most recently watched entry if it is
+     * unfinished, else the first unwatched entry after it. Without any activity (or past the
+     * end), the first entry that is not watched, or the first entry when everything is watched
+     * (so a finished playlist restarts). Null only for an empty playlist.
+     *
+     * [lastWatched] is when the entry's title was last watched (0 if never); [inProgress] whether
+     * it has an unfinished position.
      */
-    fun continueTarget(entries: List<PlaylistEntry>, watchedKeys: Set<String>): PlaylistEntry? =
-        entries.firstOrNull { it.watchedKey !in watchedKeys } ?: entries.firstOrNull()
+    fun continueTarget(
+        entries: List<PlaylistEntry>,
+        watchedKeys: Set<String>,
+        lastWatched: (PlaylistEntry) -> Long = { 0L },
+        inProgress: (PlaylistEntry) -> Boolean = { false }
+    ): PlaylistEntry? {
+        var recentIndex = -1
+        var recentAt = 0L
+        entries.forEachIndexed { index, entry ->
+            val at = lastWatched(entry)
+            if (at > recentAt) {
+                recentAt = at
+                recentIndex = index
+            }
+        }
+        if (recentIndex >= 0) {
+            val recent = entries[recentIndex]
+            if (inProgress(recent) && recent.watchedKey !in watchedKeys) return recent
+            (recentIndex + 1 until entries.size).firstOrNull { entries[it].watchedKey !in watchedKeys }
+                ?.let { return entries[it] }
+        }
+        return entries.firstOrNull { it.watchedKey !in watchedKeys } ?: entries.firstOrNull()
+    }
 
     /** Number of entries whose real title is marked watched. */
     fun watchedCount(entries: List<PlaylistEntry>, watchedKeys: Set<String>): Int =

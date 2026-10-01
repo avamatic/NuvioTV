@@ -123,7 +123,7 @@ class PlaylistViewModel @Inject constructor(
         }
 
         val entries = playlist.entries
-        val continueEntry = PlaylistSelection.continueTarget(entries, watchedKeys)
+        val continueEntry = PlaylistSelection.continueTarget(entries, watchedKeys, watch::lastWatched, watch::isInProgress)
         val continueCoordinate = continueEntry?.let { coordinates[it.key] }
         val selected = picked?.takeIf { it in 1..sections.size } ?: continueCoordinate?.first ?: 1
         return PlaylistUiState(

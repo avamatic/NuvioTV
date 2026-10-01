@@ -23,7 +23,9 @@ fun List<PlaylistSummary>.toHomeCollection(title: String): Collection? {
                 id = summary.ref.key,
                 title = summary.name,
                 coverImageUrl = summary.poster ?: summary.background,
-                tileShape = PosterShape.LANDSCAPE
+                tileShape = PosterShape.LANDSCAPE,
+                heroBackdropUrl = summary.background,
+                titleLogoUrl = summary.logo
             )
         }
     )

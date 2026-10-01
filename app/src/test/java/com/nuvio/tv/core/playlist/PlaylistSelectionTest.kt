@@ -62,6 +62,29 @@ class PlaylistSelectionTest {
     }
 
     @Test
+    fun `continues after the most recently watched entry, like a show`() {
+        val watched = setOf(playlistWatchedKey("tt9", null, null))
+        val lastWatched = { entry: PlaylistEntry -> if (entry.id == "tt9") 100L else 0L }
+        // tt1 1x1 and 1x2 are unwatched gaps before tt9; the user carries on after tt9.
+        assertEquals(entries[3], PlaylistSelection.continueTarget(entries, watched, lastWatched))
+    }
+
+    @Test
+    fun `resumes the most recent entry while it is unfinished`() {
+        val lastWatched = { entry: PlaylistEntry -> if (entry.id == "tt9") 100L else if (entry.episode == 1) 50L else 0L }
+        val inProgress = { entry: PlaylistEntry -> entry.id == "tt9" }
+        assertEquals(entries[2], PlaylistSelection.continueTarget(entries, emptySet(), lastWatched, inProgress))
+    }
+
+    @Test
+    fun `past the most recent entry with nothing left after it, falls back to the first unwatched`() {
+        val last = entries.last()
+        val watched = setOf(last.watchedKey)
+        val lastWatched = { entry: PlaylistEntry -> if (entry == last) 100L else 0L }
+        assertEquals(entries[0], PlaylistSelection.continueTarget(entries, watched, lastWatched))
+    }
+
+    @Test
     fun `an empty playlist has no target`() {
         assertNull(PlaylistSelection.continueTarget(emptyList(), emptySet()))
     }
