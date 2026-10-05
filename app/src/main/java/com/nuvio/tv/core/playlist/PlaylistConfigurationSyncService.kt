@@ -109,7 +109,7 @@ class PlaylistConfigurationSyncService @Inject constructor(
                         }
                     } catch (error: Exception) {
                         if (error is CancellationException) throw error
-                        if (error.message.orEmpty().contains("40001")) return@repeat
+                        if (error.message.orEmpty().contains("PT409")) return@repeat
                         throw error
                     }
                 }
