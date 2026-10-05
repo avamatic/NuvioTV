@@ -1,5 +1,6 @@
 package com.nuvio.tv.core.playlist
 
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
@@ -11,6 +12,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.first
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import org.json.JSONArray
 import org.json.JSONObject
 import javax.inject.Inject
@@ -34,6 +38,10 @@ class PlaylistSettingsDataStore @Inject constructor(
     }
 
     private val gson = Gson()
+    private val syncJson = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+    private val syncOwnerKey = stringPreferencesKey("sync_owner")
+    private val syncDocumentKey = stringPreferencesKey("sync_document")
+    private val syncRevisionKey = androidx.datastore.preferences.core.longPreferencesKey("sync_revision")
     private val sourcesKey = stringPreferencesKey("source_urls")
     private val disabledKey = stringSetPreferencesKey("disabled_playlists")
     private val placesKey = stringPreferencesKey("playback_places")
@@ -72,6 +80,49 @@ class PlaylistSettingsDataStore @Inject constructor(
 
     private fun encodePlaces(places: List<SavedPlaylistPlace>): String =
         JSONArray(places.map { JSONObject().put("playlist", it.ref.key).put("entry", it.entryKey).put("at", it.updatedAt) }).toString()
+
+
+    private fun configuration(prefs: Preferences): PlaylistConfiguration = PlaylistConfiguration(
+        sources = decodeSources(prefs[sourcesKey]),
+        disabledPlaylists = prefs[disabledKey].orEmpty().mapNotNull(PlaylistRef::fromKey)
+            .map { DisabledPlaylist(it.sourceUrl, it.id) }
+            .sortedWith(compareBy({ it.sourceUrl }, { it.id }))
+    )
+
+    internal fun observeConfiguration(profileId: Int): Flow<PlaylistConfiguration> =
+        factory.get(profileId, FEATURE).data.map(::configuration).distinctUntilChanged()
+
+    internal suspend fun syncSnapshot(profileId: Int, owner: String): PlaylistConfigurationSnapshot {
+        val prefs = factory.get(profileId, FEATURE).data.first()
+        val document = if (prefs[syncOwnerKey] == owner) {
+            prefs[syncDocumentKey]?.let { syncJson.parseToJsonElement(it) as? JsonObject }
+        } else null
+        return PlaylistConfigurationSnapshot(configuration(prefs), document,
+            if (document == null) 0 else prefs[syncRevisionKey] ?: 0)
+    }
+
+    /** Apply only if a user edit has not occurred during the network call. */
+    internal suspend fun acknowledgeConfiguration(
+        profileId: Int,
+        owner: String,
+        expectedLocal: PlaylistConfiguration,
+        remote: PlaylistConfiguration,
+        document: JsonObject,
+        revision: Long
+    ): Boolean {
+        var applied = false
+        factory.get(profileId, FEATURE).edit { prefs ->
+            if (configuration(prefs) != expectedLocal) return@edit
+            prefs[sourcesKey] = gson.toJson(remote.sources)
+            prefs[disabledKey] = remote.disabledPlaylists.map { it.ref.key }.toSet()
+            prefs[placesKey] = encodePlaces(decodePlaces(prefs[placesKey]).filter { it.ref.sourceUrl in remote.sources })
+            prefs[syncOwnerKey] = owner
+            prefs[syncDocumentKey] = document.toString()
+            prefs[syncRevisionKey] = revision
+            applied = true
+        }
+        return applied
+    }
 
     /** Records [entryKey] as the user's place in [ref]. */
     suspend fun savePlace(ref: PlaylistRef, entryKey: String, updatedAt: Long) {
@@ -120,3 +171,9 @@ class PlaylistSettingsDataStore @Inject constructor(
         }
     }
 }
+
+internal data class PlaylistConfigurationSnapshot(
+    val local: PlaylistConfiguration,
+    val document: JsonObject?,
+    val revision: Long
+)
