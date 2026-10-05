@@ -49,6 +49,13 @@ class PlaylistConfigurationTest {
         assertEquals(PlaylistConfiguration(), mergePlaylistConfiguration(base, base, PlaylistConfiguration()))
     }
 
+    @Test fun editDuringInitialUploadKeepsRemoteAdditionWithoutResurrectingLocalRemoval() {
+        val sent = PlaylistConfiguration(sources = listOf(a))
+        val current = PlaylistConfiguration()
+        val saved = PlaylistConfiguration(sources = listOf(b, a))
+        assertEquals(listOf(b), mergePlaylistConfiguration(sent, current, saved).sources)
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun unknownVersionIsNeverMergedOrReplaced() {
         mergePlaylistConfiguration(null, PlaylistConfiguration(), PlaylistConfiguration(version = 2))

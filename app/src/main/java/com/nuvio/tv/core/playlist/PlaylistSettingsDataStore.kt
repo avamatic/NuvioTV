@@ -101,7 +101,7 @@ class PlaylistSettingsDataStore @Inject constructor(
             if (document == null) 0 else prefs[syncRevisionKey] ?: 0)
     }
 
-    /** Apply only if a user edit has not occurred during the network call. */
+    /** Preserve edits made during the request, and acknowledge the server snapshot separately. */
     internal suspend fun acknowledgeConfiguration(
         profileId: Int,
         owner: String,
@@ -112,14 +112,16 @@ class PlaylistSettingsDataStore @Inject constructor(
     ): Boolean {
         var applied = false
         factory.get(profileId, FEATURE).edit { prefs ->
-            if (configuration(prefs) != expectedLocal) return@edit
-            prefs[sourcesKey] = gson.toJson(remote.sources)
-            prefs[disabledKey] = remote.disabledPlaylists.map { it.ref.key }.toSet()
-            prefs[placesKey] = encodePlaces(decodePlaces(prefs[placesKey]).filter { it.ref.sourceUrl in remote.sources })
+            val current = configuration(prefs)
+            val next = if (current == expectedLocal) remote else
+                mergePlaylistConfiguration(expectedLocal, current, remote)
+            prefs[sourcesKey] = gson.toJson(next.sources)
+            prefs[disabledKey] = next.disabledPlaylists.map { it.ref.key }.toSet()
+            prefs[placesKey] = encodePlaces(decodePlaces(prefs[placesKey]).filter { it.ref.sourceUrl in next.sources })
             prefs[syncOwnerKey] = owner
             prefs[syncDocumentKey] = document.toString()
             prefs[syncRevisionKey] = revision
-            applied = true
+            applied = current == expectedLocal
         }
         return applied
     }
