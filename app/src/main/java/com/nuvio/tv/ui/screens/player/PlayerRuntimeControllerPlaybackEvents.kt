@@ -6,6 +6,7 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.SeekParameters
 import com.nuvio.tv.R
 import com.nuvio.tv.core.player.LastPlaybackDiagnostics
+import com.nuvio.tv.core.playlist.extraEpisodesInFile
 import com.nuvio.tv.core.tracking.TRACKING_SCROBBLE_DIAGNOSTIC_TAG
 import com.nuvio.tv.core.tracking.TrackingMediaKind
 import com.nuvio.tv.core.tracking.TrackingMediaReference
@@ -728,6 +729,9 @@ internal fun PlayerRuntimeController.saveWatchProgressInternal(position: Long, d
         lastWatched = System.currentTimeMillis(),
         progressPercent = fallbackPercent
     )
+    // A merged file ("S01E01-E02") also plays the later episodes; finishing it finishes them too.
+    val extraEpisodes = extraEpisodesInFile(currentFilename, currentSeason, currentEpisode)
+        .map { episode -> episode to metaVideos.firstOrNull { it.season == currentSeason && it.episode == episode } }
 
     scope.launch(kotlinx.coroutines.NonCancellable) {
         val effectiveContentId = watchProgressRepository.normalizeParentContentId(
@@ -744,6 +748,18 @@ internal fun PlayerRuntimeController.saveWatchProgressInternal(position: Long, d
                     profileId = profileId,
                     broadcastTrackingHistory = false
                 )
+                extraEpisodes.forEach { (episode, video) ->
+                    watchProgressRepository.markAsCompleted(
+                        normalizedProgress.copy(
+                            videoId = video?.id ?: "${normalizedProgress.contentId}:${normalizedProgress.season}:$episode",
+                            episode = episode,
+                            episodeTitle = video?.title
+                        ),
+                        profileId = profileId,
+                        broadcastTrackingHistory = false
+                    )
+                }
+                if (extraEpisodes.isNotEmpty()) recomputeNextEpisode(resetVisibility = false)
             }
             runCatching { tvRecommendationManager.onProgressRemoved(normalizedProgress.contentId) }
         } else {

@@ -4,6 +4,7 @@ import com.nuvio.tv.R
 import com.nuvio.tv.core.network.NetworkResult
 import com.nuvio.tv.core.playlist.PLAYLIST_ENTRY_TYPE_MOVIE
 import com.nuvio.tv.core.playlist.PlaylistEntry
+import com.nuvio.tv.core.playlist.extraEpisodesInFile
 import com.nuvio.tv.data.local.AutoSkipSegmentType
 import com.nuvio.tv.data.repository.SkipInterval
 import com.nuvio.tv.domain.model.ContentType
@@ -310,7 +311,13 @@ private fun PlayerRuntimeController.recomputePlaylistNext(resetVisibility: Boole
         season = currentSeason.takeIf { isEpisode },
         episode = currentEpisode.takeIf { isEpisode }
     )
-    val next = position?.next
+    // A file holding several episodes ("S01E01-E02") already played the entries for the later ones.
+    val covered = if (isEpisode) extraEpisodesInFile(currentFilename, currentSeason, currentEpisode) else IntRange.EMPTY
+    val next = position?.let { place ->
+        place.playlist.entries.drop(place.index + 1).firstOrNull { entry ->
+            !(entry.id == contentId && entry.season == currentSeason && entry.episode in covered)
+        }
+    }
     val sameShow = next != null && next.isEpisode && isEpisode && next.id == contentId
     playlistNextEntry = next.takeUnless { sameShow }
     _uiState.update { it.copy(playlistNext = playlistNextEntry, playlistPosition = position) }
